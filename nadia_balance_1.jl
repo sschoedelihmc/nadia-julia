@@ -143,6 +143,10 @@ x_ref = [q_ref; zeros(length(state.v))]
 
 ##
 
+set_configuration!(mvis, q_ref)
+
+##
+
 # Linearize dynamics about equilibrium
 result = DynamicsResult(robot);
 

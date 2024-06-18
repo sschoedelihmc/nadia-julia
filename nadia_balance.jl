@@ -20,6 +20,10 @@ include("quaternions.jl")
 nadia = Nadia();
 vis = Visualizer();
 render(vis)
+
+##
+
+# Initialize visualizer with robot meshes
 mvis = init_visualizer(nadia, vis)
 
 ##
@@ -90,9 +94,9 @@ visualize!(nadia, mvis, q_ref)
 
 # Linearize dynamics about equilibrium
 
-h = 0.001;
-ADyn = ForwardDiff.jacobian(x_->rk4(nadia, x_, u_ref, h), x_ref);
-BDyn = ForwardDiff.jacobian(u_->rk4(nadia, x_ref, u_, h), u_ref);
+dt = 1e-3
+ADyn = ForwardDiff.jacobian(x_->rk4(nadia, x_, u_ref, dt), x_ref);
+BDyn = ForwardDiff.jacobian(u_->rk4(nadia, x_ref, u_, dt), u_ref);
 
 ADynReduced = E(x_ref[1:4])' * ADyn * E(x_ref[1:4])
 BDynReduced = E(x_ref[1:4])' * BDyn
@@ -117,7 +121,7 @@ eigvals(ADynReduced - BDynReduced*Kinf)
 #     global index
 #     current_x = [current_state.q[1:end]; current_state.v[1:end]] # [1:end] to extract Vector{Float64} from segmented vector
 #     Δx̃ = [qtorp(L(x_ref[1:4])'*current_x[1:4]); current_x[5:end] - x_ref[5:end]]
-#     Δu = -Kinf * Δx̃
+    # Δu = -Kinf * Δx̃
 #     torques[1:end] = [zeros(6); Δu + u_ref]
 # end
 
@@ -129,11 +133,14 @@ eigvals(ADynReduced - BDynReduced*Kinf)
 # setanimation!(mvis, animation);
 
 
-N = 300;
+simulation_time_step = 0.01
+end_time = 3.0
+
+N = Int(floor(end_time/simulation_time_step))
 X = [zeros(length(x_ref)) for _ = 1:N];
 U = [zeros(length(u_ref)) for _ = 1:N];
 X[1] = deepcopy(x_ref);
-X[1][length(q_ref) + 5] = 1.3; # Perturb i.c.
+# X[1][length(q_ref) + 5] = 1.3; # Perturb i.c.
 
 # Run simulation
 for k = 1:N - 1
@@ -144,7 +151,7 @@ for k = 1:N - 1
     global U[k] = u_ref - Kinf*Δx̃
 
     # Integrate
-    global X[k + 1] = rk4(nadia, X[k], U[k], h)
+    global X[k + 1] = rk4(nadia, X[k], U[k], simulation_time_step)
 end
-anim = animate(nadia, mvis, X, Δt=0.01);
+anim = animate(nadia, mvis, X, Δt=simulation_time_step, division=1);
 setanimation!(mvis, anim)

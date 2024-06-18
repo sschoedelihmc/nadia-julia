@@ -1,15 +1,17 @@
 using Printf
 
+
 function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8)
     P = Qf
     K = zero(B')
+    K_prev = deepcopy(K)
     for _ = 1:max_iters
-        P_prev = deepcopy(P)
         K = (R .+ B'*P*B) \ (B'*P*A)
         P = Q + A'P*(A - B*K)
-        if norm(P - P_prev, 2) < tol
+        if norm(K - K_prev, 2) < tol
             return K, P
         end
+        K_prev = deepcopy(K)
     end
     @error "ihlqr didn't converge", norm(K - (R .+ B'*P*B) \ (B'*P*A), 2)
     return K, P
