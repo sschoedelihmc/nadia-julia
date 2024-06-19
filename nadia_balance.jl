@@ -11,7 +11,6 @@ using StaticArrays
 using SparseArrays
 
 import ForwardDiff
-import FiniteDiff ### TODO: Delete this later if it doesn't work
 
 include("nadia_robot.jl")
 include("control_utils.jl")
@@ -101,14 +100,6 @@ BDyn = ForwardDiff.jacobian(u_ -> rk4(nadia, x_ref, u_, dt), u_ref)
 ADynReduced = E(x_ref[1:4])' * ADyn * E(x_ref[1:4])
 BDynReduced = E(x_ref[1:4])' * BDyn
 
-# ADynReduced_nadia_balance_1 = load_object("state_transition_matrix_A_reduced_form.jld2")
-# BDynReduced_nadia_balance_1 = load_object("input_matrix_B_reduced_form.jld2")
-# maximum(abs.(ADynReduced1 - ADynReduced_nadia_balance_1))
-# maximum(abs.(BDynReduced1 - BDynReduced_nadia_balance_1))
-
-# ADynReduced = ADynReduced1
-# BDynReduced = BDynReduced1
-
 ##
 
 # Compute IHLQR optimal feedback gain matrix Kinf
@@ -125,24 +116,6 @@ eigvals(ADynReduced - BDynReduced*Kinf)
 
 Kinf_nadia_balance_1 = load_object("Kinf_nadia_balance_1.jld2")
 maximum(abs.(Kinf - Kinf_nadia_balance_1))
-
-##
-
-# # Create LQR controller
-# function lqr_controller!(torques::AbstractVector, t, current_state::MechanismState)
-#     global index
-#     current_x = [current_state.q[1:end]; current_state.v[1:end]] # [1:end] to extract Vector{Float64} from segmented vector
-#     Δx̃ = [qtorp(L(x_ref[1:4])'*current_x[1:4]); current_x[5:end] - x_ref[5:end]]
-#     Δu = -Kinf * Δx̃
-#     torques[1:end] = [zeros(6); Δu + u_ref]
-# end
-
-# copyto!(nadia.state, x_ref)
-# nadia.state.v[5] = 1.2 # Set initial pelvis X-velocity to mimic a push disturbance
-
-# t, q, v = simulate(nadia.state, 3.0, lqr_controller!; Δt=0.001, stabilization_gains=nadia.baumgarte_gains);
-# animation = Animation(mvis, t, q);
-# setanimation!(mvis, animation);
 
 ##
 

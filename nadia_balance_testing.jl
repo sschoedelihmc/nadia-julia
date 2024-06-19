@@ -20,7 +20,7 @@ using LinearAlgebra
 import ForwardDiff
 import FiniteDiff
 include("data.jl")
-include("quaternions.jl")
+include("control_utils.jl")
 
 ##
 
@@ -169,49 +169,29 @@ dt = 1e-3
 ADyn = FiniteDiff.finite_difference_jacobian(x_ -> rk4(x_, u_ref, dt), x_ref)
 BDyn = FiniteDiff.finite_difference_jacobian(u_ -> rk4(x_ref, u_, dt), u_ref)
 
-AReducedDyn = E(x_ref[1:4])' * ADyn * E(x_ref[1:4])
-BReducedDyn = E(x_ref[1:4])' * BDyn
+ADynReduced = E(x_ref[1:4])' * ADyn * E(x_ref[1:4])
+BDynReduced = E(x_ref[1:4])' * BDyn
 
-save_object("state_transition_matrix_A_reduced_form.jld2", AReducedDyn)
-save_object("input_matrix_B_reduced_form.jld2", BReducedDyn)
+save_object("state_transition_matrix_A_reduced_form.jld2", ADynReduced)
+save_object("input_matrix_B_reduced_form.jld2", BDynReduced)
 
 ##
 
 # Compute optimal feedback gains
-nx = size(BReducedDyn)[1]
-nu = size(BReducedDyn)[2]
 Q = spdiagm([repeat([5e2], 6); repeat([1e-3, 1e-3, 1e3], 3); 1e2; 1e2; repeat([5e-4; 5e-4; 1e1; 1e-5], 2); repeat([1e-2], 4);    repeat([1e1], 6); repeat([1e1, 1e1, 1e1], 3); 1e2; 1e2; repeat([1e1; 1e1; 1e1; 1e-4], 2); repeat([1e1], 4)]);
 # Q = spdiagm(repeat( [repeat([1e2], 3); 1e2; 1e2; 1e2; repeat([1e1, 1e1, 1e3], 3); 1e2; 1e2; repeat([1e-2; 1e-2; 1e1; 1e-4], 2); repeat([5e-2], 4)], 2) );
-R = spdiagm(1e-2*ones(nu));
+R = spdiagm(1e-2*ones(size(BDynReduced)[2]));
 
-Kinf = zeros(nu,nx)
-Pinf = zeros(nx,nx)
-Kprev = zeros(nu,nx)
-Pprev = Q
+Kinf, Qf = ihlqr(ADynReduced, BDynReduced, Q, R, Q, max_iters = 200000);
 
-# Compute Kinf, Pinf
-riccati_iters = 0
-riccati_err = 1e-10
-A = AReducedDyn
-B = BReducedDyn
-for i in 1:50000 # 1:max_iters
-    Kinf = (R + B'*Pprev*B)\(B'*Pprev*A);
-    Pinf = Q + A'*Pprev*(A - B*Kinf);
-    if maximum(abs.(Kinf - Kprev)) < riccati_err
-        display("IHLQR converged in " * string(i) * " iterations")
-        break
-    end
-    Kprev = Kinf
-    Pprev = Pinf
-    riccati_iters += 1
-end
+eigvals(ADynReduced-BDynReduced*Kinf)
 
-eigvals(A-B*Kinf)
+save_object("Kinf_nadia_balance_1.jld2", Kinf)
 
 ##
 
 end_time = 3.0
-time_step = 0.0001
+time_step = 0.001
 
 x_ref_pelvis_z = [sin(t/12000) for t in 1:floor((end_time*4)/time_step)+5] .- 0.05
 x_ref_new = deepcopy(x_ref)
@@ -233,7 +213,7 @@ state = MechanismState(robot)
 initialize!(state, robot) # Set robot mechanism state config
 set_configuration!(mvis, configuration(state)) # Update config in visualizer
 
-state.v[5] = -1.5 # X-velocity of pelvis
+state.v[5] = 1.5 # X-velocity of pelvis
 
 baumgarte_gains = Dict(JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0))) # angular, linear
 t, q, v = simulate(state, end_time, lqr_controller!; Δt=time_step, stabilization_gains=baumgarte_gains);
