@@ -1,11 +1,11 @@
 using Pkg; Pkg.activate(@__DIR__)
 
 using JLD2
+
+using MeshCat
 using MeshCatMechanisms
 using RigidBodyDynamics
 using RigidBodyDynamics.PDControl
-
-using MeshCat
 
 using StaticArrays
 using SparseArrays
@@ -93,10 +93,12 @@ set_configuration!(mvis, x_ref[1:nadia.nq])
 
 ##
 
+# Calculate linearized dynamics
 dt = 1e-3
 ADyn = ForwardDiff.jacobian(x_ -> rk4(nadia, x_, u_ref, dt), x_ref)
 BDyn = ForwardDiff.jacobian(u_ -> rk4(nadia, x_ref, u_, dt), u_ref)
 
+# Reduce quaternion representation to a form we can do math with
 ADynReduced = E(x_ref[1:4])' * ADyn * E(x_ref[1:4])
 BDynReduced = E(x_ref[1:4])' * BDyn
 
@@ -109,13 +111,10 @@ Q = spdiagm([repeat([5e2], 6); repeat([1e-3, 1e-3, 1e3], 3); 1e2; 1e2; repeat([5
                 repeat([1e1], 6); repeat([1e1, 1e1, 1e1], 3); 1e2; 1e2; repeat([1e1; 1e1; 1e1; 1e-4], 2); repeat([1e1], 4)]);
 R = spdiagm(1e-2*ones(size(BDynReduced)[2]));
 
-Kinf, Qf = ihlqr(ADynReduced, BDynReduced, Q, R, Q, max_iters = 200000);
+Kinf, Qf = ihlqr(ADynReduced, BDynReduced, Q, R, Q; max_iters = 200000, verbose=true);
 
 # Check eigenvalues of system
-eigvals(ADynReduced - BDynReduced*Kinf)
-
-Kinf_nadia_balance_1 = load_object("Kinf_nadia_balance_1.jld2")
-maximum(abs.(Kinf - Kinf_nadia_balance_1))
+# eigvals(ADynReduced - BDynReduced*Kinf)
 
 ##
 
@@ -126,7 +125,7 @@ N = Int(floor(end_time/simulation_time_step))
 X = [zeros(length(x_ref)) for _ = 1:N];
 U = [zeros(length(u_ref)) for _ = 1:N];
 X[1] = deepcopy(x_ref);
-X[1][nadia.nq + 5] = -1.3; # Perturb i.c.
+X[1][nadia.nq + 5] = 1.3; # Perturb i.c.
 
 # Run simulation
 for k = 1:N - 1
@@ -139,5 +138,5 @@ for k = 1:N - 1
     # Integrate
     global X[k + 1] = rk4(nadia, X[k], U[k], simulation_time_step; gains=nadia.baumgarte_gains)
 end
-anim = animate(nadia, mvis, X, Δt=simulation_time_step, division=100);
+anim = animate(nadia, mvis, X, Δt=simulation_time_step, frames_to_skip=100);
 setanimation!(mvis, anim)

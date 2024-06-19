@@ -69,9 +69,9 @@ function init_visualizer(model::Nadia, vis::Visualizer)
 end
 
 
-function animate(model::Nadia, mvis::MechanismVisualizer, qs; Δt=0.001, division=50)
-    anim = MeshCat.Animation(convert(Int, floor(1.0 / (Δt * division))))
-    for (t, q) in enumerate(qs[1:division:end])
+function animate(model::Nadia, mvis::MechanismVisualizer, qs; Δt=0.001, frames_to_skip=50)
+    anim = MeshCat.Animation(convert(Int, floor(1.0 / (Δt * frames_to_skip))))
+    for (t, q) in enumerate(qs[1:frames_to_skip:end])
         MeshCat.atframe(anim, t) do 
             set_configuration!(mvis, q[1:model.nq])
         end

@@ -2,7 +2,7 @@ using LinearAlgebra
 using BlockDiagonals
 
 # Infinite horizon LQR solver
-function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8)
+function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8, verbose=false)
     P = Qf
     K = zero(B')
     K_prev = deepcopy(K)
@@ -10,7 +10,9 @@ function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8)
         K = (R .+ B'*P*B) \ (B'*P*A)
         P = Q + A'P*(A - B*K)
         if norm(K - K_prev, 2) < tol
-            display("ihlqr converged in " * string(i) * " iterations")
+            if verbose
+                display("ihlqr converged in " * string(i) * " iterations")
+            end
             return K, P
         end
         K_prev = deepcopy(K)
