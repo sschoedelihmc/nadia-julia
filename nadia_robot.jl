@@ -6,8 +6,10 @@ using StaticArrays
 
 struct Nadia
     mech::Mechanism{Float64}
+    state::MechanismState
+    dyn_result::DynamicsResult
     statecache::StateCache
-    dynrescache::DynamicsResultCache
+    dyn_result_cache::DynamicsResultCache
     baumgarte_gains
     urdfpath::String
     nq::Int
@@ -34,32 +36,30 @@ struct Nadia
         # Stabilization gains for non-tree joints
         baumgarte_gains = Dict(JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0))) # angular, linear
 
-        new(mech, StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech))
+        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech))
     end
 end
 
-function dynamics(model::Nadia, x::AbstractVector{T1}, u::AbstractVector{T2}) where {T1, T2}
+function dynamics(model::Nadia, x::AbstractVector{T1}, u::AbstractVector{T2}; gains=RigidBodyDynamics.default_constraint_stabilization_gains(Float64)) where {T1, T2}
     T = promote_type(T1, T2)
     state = model.statecache[T]
-    dyn_result = model.dynrescache[T]
+    dyn_result = model.dyn_result_cache[T]
 
     # Set the mechanism state
     copyto!(state, x)
 
     # Perform forward dynamics (six zeros because RigidBodyDynamics allows control over the pelvis)
-    dynamics!(dyn_result, state, [zeros(6); u]; stabilization_gains=model.baumgarte_gains)
+    dynamics!(dyn_result, state, [zeros(6); u]; stabilization_gains=gains)
 
     return [dyn_result.q̇; dyn_result.v̇]
 end
 
-function rk4(model::Nadia, x, u, h)
-    k1 = dynamics(model, x, u)
-    k2 = dynamics(model, x + h/2*k1, u)
-    k3 = dynamics(model, x + h/2*k2, u)
-    k4 = dynamics(model, x + h*k3, u)
-    x1 = x + h/6*(k1 + 2*k2 + 2*k3 + k4)
-    x1[1:4] = x1[1:4]/norm(x1[1:4]) # Normalize quaternion
-    return x1
+function rk4(model::Nadia, x, u, h; gains=RigidBodyDynamics.default_constraint_stabilization_gains(Float64))
+    k1 = dynamics(model, x, u; gains=gains)
+    k2 = dynamics(model, x + h/2*k1, u; gains=gains)
+    k3 = dynamics(model, x + h/2*k2, u; gains=gains)
+    k4 = dynamics(model, x + h*k3, u; gains=gains)
+    return x + h/6*(k1 + 2*k2 + 2*k3 + k4)
 end
 
 function init_visualizer(model::Nadia, vis::Visualizer)
@@ -68,9 +68,6 @@ function init_visualizer(model::Nadia, vis::Visualizer)
     return mvis
 end
 
-function visualize!(model::Nadia, mvis::MechanismVisualizer, q)
-    set_configuration!(mvis, q[1:model.nq])
-end
 
 function animate(model::Nadia, mvis::MechanismVisualizer, qs; Δt=0.001, division=50)
     anim = MeshCat.Animation(convert(Int, floor(1.0 / (Δt * division))))

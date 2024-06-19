@@ -6,10 +6,11 @@ function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8)
     P = Qf
     K = zero(B')
     K_prev = deepcopy(K)
-    for _ = 1:max_iters
+    for i = 1:max_iters
         K = (R .+ B'*P*B) \ (B'*P*A)
         P = Q + A'P*(A - B*K)
         if norm(K - K_prev, 2) < tol
+            display("ihlqr converged in " * string(i) * " iterations")
             return K, P
         end
         K_prev = deepcopy(K)
