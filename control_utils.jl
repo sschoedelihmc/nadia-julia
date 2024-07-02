@@ -43,12 +43,16 @@ T = Diagonal([1; -ones(3)])
 
 H = [zeros(1,3); I]
 
-function qtoQ(q)
-    return H'*T*L(q)*T*L(q)*H
-end
-
 function G(q)
     G = L(q)*H
+end
+
+function E(q)
+    E = BlockDiagonal([G(q), 1.0*I(55)])
+end
+
+function qtoQ(q)
+    return H'*T*L(q)*T*L(q)*H
 end
 
 function rptoq(ϕ)
@@ -57,8 +61,4 @@ end
 
 function qtorp(q)
     q[2:4]/q[1]
-end
-
-function E(q)
-    E = BlockDiagonal([G(q), 1.0*I(55)])
 end
