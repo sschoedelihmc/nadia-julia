@@ -10,7 +10,6 @@ struct Nadia
     dyn_result::DynamicsResult
     statecache::StateCache
     dyn_result_cache::DynamicsResultCache
-    baumgarte_gains
     urdfpath::String
     nq::Int
     nv::Int
@@ -31,12 +30,12 @@ struct Nadia
             foot_translation
         )
 
-        attach!(mech, world, right_foot, right_foot_fixed_joint, joint_pose = world_to_joint)
+        # attach!(mech, world, right_foot, right_foot_fixed_joint, joint_pose = world_to_joint)
 
-        # Stabilization gains for non-tree joints
-        baumgarte_gains = Dict(JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0))) # angular, linear
+        # # Stabilization gains for non-tree joints
+        # baumgarte_gains = Dict(JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0))) # angular, linear
 
-        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech))
+        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), urdfpath, num_positions(mech), num_velocities(mech))
     end
 end
 
