@@ -1,0 +1,3 @@
+[submodule "submodules/QuadrupedControl.jl"]
+	path = submodules/QuadrupedControl.jl
+	url = https://github.com/RoboticExplorationLab/QuadrupedControl.jl.git
