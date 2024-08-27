@@ -4,7 +4,7 @@ using MeshCatMechanisms
 using RigidBodyDynamics
 using StaticArrays
 
-struct Nadia
+struct Nadia <: PinnZooModel # TODO fix this hack to make the model play nice with QuadrupedControl.jl
     mech::Mechanism{Float64}
     state::MechanismState
     dyn_result::DynamicsResult
@@ -13,6 +13,8 @@ struct Nadia
     urdfpath::String
     nq::Int
     nv::Int
+    nx::Int
+    nu::Int
     function Nadia()
 
         # Create robot and fix right foot to world (without deleting pelvis)
@@ -35,9 +37,12 @@ struct Nadia
         # # Stabilization gains for non-tree joints
         # baumgarte_gains = Dict(JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0))) # angular, linear
 
-        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), urdfpath, num_positions(mech), num_velocities(mech))
+        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), urdfpath, 
+                num_positions(mech), num_velocities(mech), num_positions(mech) + num_velocities(mech), 23)
     end
 end
+
+QuadrupedControl.get_mujoco_xml_path(model::Nadia) = joinpath(@__DIR__, "nadia_V17_description/mujoco/nadiaV17.simpleKnees_scene.xml")
 
 function dynamics(model::Nadia, x::AbstractVector{T1}, u::AbstractVector{T2}; gains=RigidBodyDynamics.default_constraint_stabilization_gains(Float64)) where {T1, T2}
     T = promote_type(T1, T2)

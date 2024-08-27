@@ -7,6 +7,10 @@
           <geom pos="0 0 0"  priority="1" condim="6"
             friction="1 0.02 0.01" type="mesh" mesh="foot"/>
         </default>
+        <default class="torso">
+          <geom pos="0 0 0"  priority="1" condim="6"
+            friction="1 0.02 0.01" type="mesh" mesh="torso_cycloidmounts"/>
+        </default>
     </default>
   </default>
 
@@ -65,6 +69,12 @@
                   <joint name="LEFT_ANKLE_X" pos="0 0 0" axis="1 0 0" range="-0.436332 0.436332" actuatorfrcrange="-1000 1000" damping="0.05"/>
                   <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="foot"/>
                   <geom name="LEFT" class="foot"/>
+                  <!-- Calculated from mesh, conservative -->
+                  <site name="L_C" pos="0.053 0.0085 -0.088"/>
+                  <site name="L_RL" pos="-0.072 0.038 -0.088"/>
+                  <site name="L_RR" pos="-0.072 -0.038 -0.088"/>
+                  <site name="L_FL" pos="0.178 0.021 -0.088"/>
+                  <site name="L_FR" pos="0.178 -0.021 -0.088"/>
                 </body>
               </body>
             </body>
@@ -96,6 +106,12 @@
                   <joint name="RIGHT_ANKLE_X" pos="0 0 0" axis="1 0 0" range="-0.436332 0.436332" actuatorfrcrange="-1000 1000" damping="0.05"/>
                   <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="foot"/>
                   <geom name="RIGHT" class="foot"/>
+                  <!-- Calculated from mesh, conservative -->
+                  <site name="R_C" pos="0.053 0.0085 -0.088"/>
+                  <site name="R_RL" pos="-0.072 0.038 -0.088"/>
+                  <site name="R_RR" pos="-0.072 -0.038 -0.088"/>
+                  <site name="R_FL" pos="0.178 0.021 -0.088"/>
+                  <site name="R_FR" pos="0.178 -0.021 -0.088"/>
                 </body>
               </body>
             </body>
@@ -114,6 +130,7 @@
             <inertial pos="-0.0361387 -2.81e-06 0.259086" quat="0.999765 0.000864511 0.0216369 0.00125896" mass="13.5" diaginertia="0.534796 0.50541 0.37911"/>
             <joint name="SPINE_Y" pos="0 0 0" axis="0 1 0" range="-1.0472 1.0472" actuatorfrcrange="-1000 1000" damping="0.05"/>
             <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="torso_cycloidmounts"/>
+            <geom name="torso" class="torso"/>
             <body name="LEFT_SHOULDER_PITCH_LINK" pos="0.001 0.185 0.173" quat="0.853553 0.353553 -0.146447 -0.353553">
               <inertial pos="-0.00117 0.14001 -0.00621" quat="0.52476 0.468101 -0.460926 0.541346" mass="2.917" diaginertia="0.0115521 0.0108398 0.00485466"/>
               <joint name="LEFT_SHOULDER_Y" pos="0 0 0" axis="0 1 0" range="-3.14159 1.22173" actuatorfrcrange="-1000 1000" damping="0.05"/>

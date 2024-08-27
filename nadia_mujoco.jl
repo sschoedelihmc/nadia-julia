@@ -1,6 +1,46 @@
 using Pkg; Pkg.activate(@__DIR__);
-using MuJoCo; init_visualiser()
-using LinearAlgebra
+using QuadrupedControl
+
+include(joinpath(@__DIR__, "nadia_robot.jl"))
+model = Nadia()
+let
+    global intf
+    close(intf)
+    intf = init_mujoco_interface(model)
+    data = init_data(model, intf, preferred_monitor=3)
+    
+    intf.d.qpos[3] = 1.2
+end
+
+foot_id = 11
+torso_id = 14
+unsafe_string(MuJoCo.mj_id2name(m, MuJoCo.mjOBJ_MESH, foot_id - 1))
+unsafe_string(MuJoCo.mj_id2name(m, MuJoCo.mjOBJ_MESH, torso_id - 1))
+foot_start = m.mesh_graphadr[foot_id] + 1
+foot_end = m.mesh_graphadr[torso_id]
+hull_data = m.mesh_graph[foot_start:foot_end]
+numvert = hull_data[1]
+numface = hull_data[2]
+vert_edgeadr = hull_data[2 .+ (1:numvert)]
+vert_globalid = hull_data[2 + numvert .+ (1:numvert)]
+edge_localid = hull_data[2 + 2*numvert .+ (1:numvert + 3*numface)]
+face_globalid = hull_data[2 + 3*numvert + 3*numface .+ (1:3*numface)]
+
+vert_adr = m.mesh_vertadr[foot_id]
+q = m.mesh_quat[foot_id, :]
+verts = [quat_to_rot(q)*m.mesh_vert[vert_adr - 1 + v, :] + m.mesh_pos[foot_id, :] for v in vert_globalid]
+
+verts = [quat_to_rot(q)*m.mesh_vert[vert_adr - 1 + k, :] + m.mesh_pos[foot_id, :] for k in 1:m.mesh_vertnum[foot_id]]
+verts = [v for v in verts if v[3] < -0.0879 && (v[1] < -0.0715 || v[1] > 0.1775)]
+
+
+plot([v[1] for v in verts], [v[2] for v in verts])
+
+
+
+plot(m.mesh_vert[1:3:end], m.mesh_vert[2:3:end], m.mesh_vert[3:3:end])
+
+using Plots
 
 let
     put!(c, true) 
