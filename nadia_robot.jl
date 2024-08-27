@@ -15,6 +15,8 @@ struct Nadia <: PinnZooModel # TODO fix this hack to make the model play nice wi
     nv::Int
     nx::Int
     nu::Int
+    orders::Dict{Symbol, StateOrder}
+    conversions::Dict{Tuple{Symbol, Symbol}, ConversionIndices}
     function Nadia()
 
         # Create robot and fix right foot to world (without deleting pelvis)
@@ -37,8 +39,26 @@ struct Nadia <: PinnZooModel # TODO fix this hack to make the model play nice wi
         # # Stabilization gains for non-tree joints
         # baumgarte_gains = Dict(JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0))) # angular, linear
 
+        # Generate state order for rigidBodyDynamics
+        state = MechanismState(mech)
+        config_names =  [Symbol(joints(mech)[id].name) for id in state.q_index_to_joint_id]
+        vel_names = [Symbol(joints(mech)[id].name) for id in state.v_index_to_joint_id]
+
+        # Fix floating base
+        for joint in joints(mech)
+            if typeof(joint.joint_type) <: QuaternionFloating
+                config_names[state.qranges[joint]] = [:qw, :qx, :qy, :qz, :x, :y, :z]
+                vel_names[state.vranges[joint]] = [:wx, :wy, :wz, :vx, :vy, :vz]
+            end
+        end
+
+        orders = Dict{Symbol, StateOrder}()
+        orders[:rigidBodyDynamics] = StateOrder(config_names, vel_names)
+        conversions = generate_conversions(orders) # Will be empty to start
+
+
         new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), urdfpath, 
-                num_positions(mech), num_velocities(mech), num_positions(mech) + num_velocities(mech), 23)
+                num_positions(mech), num_velocities(mech), num_positions(mech) + num_velocities(mech), 23, orders, conversions)
     end
 end
 
