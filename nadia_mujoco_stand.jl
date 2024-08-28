@@ -4,7 +4,7 @@ using QuadrupedControl
 using JLD2
 using ForwardDiff
 using SparseArrays
-using Plots; plotlyjs(); theme(:default)
+using Plots; plotlyjs(); theme(:default); default(:size, (1200, 800))
 using Statistics
 import MuJoCo
 
@@ -25,22 +25,24 @@ u_lin = vcat(calc_continuous_eq(model, x_lin)...)
 body_pos, arm_pos, leg_pos, spine_pos = 1e4*ones(6), 1e2*ones(4), 1e4*ones(6), 1e4*ones(3)
 body_vel, arm_vel, leg_vel, spine_vel = 1e1*body_pos, 1e1*arm_pos, 1e1*leg_pos, 1e1*spine_pos
 Q = spdiagm([body_pos; leg_pos; leg_pos; spine_pos; arm_pos; arm_pos; body_vel; leg_vel; leg_vel; spine_vel; arm_vel; arm_vel])
-R = spdiagm(1e-0*ones(model.nu));
+R = spdiagm(1e-1*ones(model.nu));
 mpc = LinearizedRK4MPC(model, x_lin, u_lin, 0.01, Q, R, 10);
 
 # Simulate using MuJoCo
 vis = Visualizer();
 mvis = init_visualizer(model_fixed, vis)
 simulation_time_step = intf.m.opt.timestep*4
-end_time = 5.3
+end_time = 2.5
 
 N = Int(floor(end_time/simulation_time_step))
 X = [zeros(model.nx) for _ = 1:N];
 U = [zeros(model.nu) for _ = 1:N];
 X[1] = deepcopy(x_lin);
-X[1][model.nq + 5] = 1.3; # Perturb i.c.
+X[1][model.nq + 5] = 3; # Perturb i.c.
+
 
 # Run simulation
+data.x = copy(X[1]); data.u = u_lin[1:model.nu]; data.t = 0; warmstart!(model, mpc, data); 
 for k = 1:N - 1
     # Set MuJoCo state
     data.x .= X[k]
@@ -50,7 +52,7 @@ for k = 1:N - 1
     # Calc control
     x_d, U[k], _, _, status = get_ctrl(model, mpc, data)
 
-    # Update control
+    # # Update control
     data.u .= U[k]
     set_data!(model, intf, data)
 

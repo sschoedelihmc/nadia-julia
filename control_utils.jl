@@ -25,8 +25,6 @@ function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8, verbose=false)
     return K, P
 end
 
-
-
 # Quaternion stuff
 
 function hat(v)
