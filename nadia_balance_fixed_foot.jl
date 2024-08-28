@@ -17,7 +17,7 @@ include("control_utils.jl")
 
 ##
 
-nadia = Nadia();
+nadia = NadiaFixed();
 vis = Visualizer();
 render(vis)
 

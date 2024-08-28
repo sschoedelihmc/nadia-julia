@@ -88,7 +88,7 @@ end
 
 function init_visualizer(model::Nadia, vis::Visualizer)
     delete!(vis)
-    mvis = MechanismVisualizer(model.mech, URDFVisuals(model.urdfpath), vis)
+    mvis = MechanismVisualizer(model.mech, URDFVisuals(model.urdfpath, package_path=[@__DIR__]), vis)
     return mvis
 end
 

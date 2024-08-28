@@ -2,9 +2,10 @@
 using MeshCat
 using MeshCatMechanisms
 using RigidBodyDynamics
+using RigidBodyDynamics.PDControl
 using StaticArrays
 
-struct NadiaFixed
+struct NadiaFixed <: PinnZooModel # TODO fix this hack to make the model play nice with QuadrupedControl.jl
     mech::Mechanism{Float64}
     state::MechanismState
     dyn_result::DynamicsResult
@@ -14,6 +15,10 @@ struct NadiaFixed
     urdfpath::String
     nq::Int
     nv::Int
+    nx::Int
+    nu::Int
+    orders::Dict{Symbol, StateOrder}
+    conversions::Dict{Tuple{Symbol, Symbol}, ConversionIndices}
     function NadiaFixed()
 
         # Create robot and fix right foot to world (without deleting pelvis)
@@ -36,9 +41,29 @@ struct NadiaFixed
         # Stabilization gains for non-tree joints
         baumgarte_gains = Dict(JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0))) # angular, linear
 
-        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech))
+        # Generate state order for rigidBodyDynamics
+        state = MechanismState(mech)
+        config_names =  [Symbol(joints(mech)[id].name) for id in state.q_index_to_joint_id]
+        vel_names = [Symbol(joints(mech)[id].name) for id in state.v_index_to_joint_id]
+
+        # Fix floating base
+        for joint in joints(mech)
+            if typeof(joint.joint_type) <: QuaternionFloating
+                config_names[state.qranges[joint]] = [:qw, :qx, :qy, :qz, :x, :y, :z]
+                vel_names[state.vranges[joint]] = [:wx, :wy, :wz, :vx, :vy, :vz]
+            end
+        end
+
+        orders = Dict{Symbol, StateOrder}()
+        orders[:rigidBodyDynamics] = StateOrder(config_names, vel_names)
+        conversions = generate_conversions(orders) # Will be empty to start
+
+        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, 
+                urdfpath, num_positions(mech), num_velocities(mech), num_positions(mech) + num_velocities(mech), 23, orders, conversions)
     end
 end
+
+QuadrupedControl.get_mujoco_xml_path(model::NadiaFixed) = joinpath(@__DIR__, "nadia_V17_description/mujoco/nadiaV17.simpleKnees_scene.xml")
 
 function dynamics(model::NadiaFixed, x::AbstractVector{T1}, u::AbstractVector{T2}; gains=RigidBodyDynamics.default_constraint_stabilization_gains(Float64)) where {T1, T2}
     T = promote_type(T1, T2)
@@ -64,7 +89,7 @@ end
 
 function init_visualizer(model::NadiaFixed, vis::Visualizer)
     delete!(vis)
-    mvis = MechanismVisualizer(model.mech, URDFVisuals(model.urdfpath), vis)
+    mvis = MechanismVisualizer(model.mech, URDFVisuals(model.urdfpath, package_path=[@__DIR__]), vis)
     return mvis
 end
 
