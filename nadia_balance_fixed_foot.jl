@@ -22,7 +22,7 @@ include("control_utils.jl")
 
 # urdfpath = joinpath(@__DIR__, "nadia_V17_description/urdf/nadiaV17.fullRobot.simpleKnees.cycloidArms.urdf");
 urdfpath = joinpath(@__DIR__, "nadia_V17_description/urdf/nadiaV17.fullRobot.simpleKnees.extended.cycloidArms.urdf");
-# urdfpath = joinpath(@__DIR__, "nadia_V17_description/urdf/nadiaV17.fullRobot.cycloidArms4DoF.urdf");
+# urdfpath = joinpath(@__DIR__, "nadia_V17_description/urdf/nadiaV17.fullRobot.cycloidArms4DoF.withFourBarLinkage.urdf");
 nadia = NadiaFixed(urdfpath; fourbarknee=false)
 vis = Visualizer()
 render(vis)
