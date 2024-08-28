@@ -1,14 +1,18 @@
 using LinearAlgebra
 using BlockDiagonals
+using ProgressMeter
 
 # Infinite horizon LQR solver
 function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8, verbose=false)
     P = Qf
     K = zero(B')
     K_prev = deepcopy(K)
-    for i = 1:max_iters
+    @showprogress for i = 1:max_iters
         K = (R .+ B'*P*B) \ (B'*P*A)
+        push!(Ks, copy(K))
         P = Q + A'P*(A - B*K)
+        push!(Ps, copy(P))
+        
         if norm(K - K_prev, 2) < tol
             if verbose
                 display("ihlqr converged in " * string(i) * " iterations")
