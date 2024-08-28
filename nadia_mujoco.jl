@@ -8,21 +8,23 @@ import MuJoCo
 
 include(joinpath(@__DIR__, "nadia_robot_fixed_foot.jl"))
 include("control_utils.jl")
-model = NadiaFixed();
+model_fixed = NadiaFixed();
+generate_mujoco_stateorder(model_fixed);
+model = Nadia(nc_per_foot = 4)
 intf = init_mujoco_interface(model)
 data = init_data(model, intf, preferred_monitor=3)
 
 # Load reference
 x_ref = load_object("nadia_balance_x_ref.jld2")
 u_ref = load_object("nadia_balance_u_ref.jld2")
-data.x .= change_order(model, x_ref, :rigidBodyDynamics, :mujoco)
-data.u .= change_order(model, u_ref, :rigidBodyDynamics, :mujoco)
-set_data!(model, intf, data)
+data.x .= change_order(model_fixed, x_ref, :rigidBodyDynamics, :mujoco)
+data.u .= change_order(model_fixed, u_ref, :rigidBodyDynamics, :mujoco)
+set_data!(model_fixed, intf, data)
 
 # Create LQR
 dt = intf.m.opt.timestep
-ADyn = ForwardDiff.jacobian(x_ -> rk4(model, x_, u_ref, dt), x_ref)
-BDyn = ForwardDiff.jacobian(u_ -> rk4(model, x_ref, u_, dt), u_ref)
+ADyn = ForwardDiff.jacobian(x_ -> rk4(model_fixed, x_, u_ref, dt), x_ref)
+BDyn = ForwardDiff.jacobian(u_ -> rk4(model_fixed, x_ref, u_, dt), u_ref)
 
 # Reduce quaternion representation to a form we can do math with
 ADynReduced = E(x_ref[1:4])' * ADyn * E(x_ref[1:4])
@@ -31,15 +33,15 @@ BDynReduced = E(x_ref[1:4])' * BDyn
 # Compute IHLQR optimal feedback gain matrix Kinf
 Q = spdiagm([repeat([5e2], 6); repeat([1e-3, 1e-3, 1e3], 3); 1e2; 1e2; repeat([5e1; 5e1; 1e3; 1e3], 2); repeat([1e2], 4);
                 repeat([1e1], 6); repeat([1e1, 1e1, 1e1], 3); 1e2; 1e2; repeat([1e1; 1e1; 1e1; 1e1], 2); repeat([1e1], 4)]);
-R = spdiagm(1e-0*ones(size(BDynReduced)[2]));
+R = spdiagm(1e+0*ones(size(BDynReduced)[2]));
 
 Kinf, Qf = ihlqr(ADynReduced, BDynReduced, Q, R, Q; max_iters = 200000, verbose=true);
 
 # Simulate using MuJoCo
 vis = Visualizer();
-mvis = init_visualizer(model, vis)
+mvis = init_visualizer(model_fixed, vis)
 simulation_time_step = intf.m.opt.timestep
-end_time = 10.0
+end_time = 20.0
 
 N = Int(floor(end_time/simulation_time_step))
 X = [zeros(length(x_ref)) for _ = 1:N];
@@ -59,8 +61,8 @@ for k = 1:N - 1
     global U[k] = u_ref - Kinf*Δx̃
 
     # Apply to MuJoCo
-    data.x .= change_order(model, X[k], :rigidBodyDynamics, :mujoco)
-    data.u .= change_order(model, U[k], :rigidBodyDynamics, :mujoco)
+    data.x .= change_order(model_fixed, X[k], :rigidBodyDynamics, :mujoco)
+    data.u .= change_order(model_fixed, U[k], :rigidBodyDynamics, :mujoco)
     set_data!(model, intf, data)
 
     # Take a step
@@ -70,12 +72,12 @@ for k = 1:N - 1
 
     # Get data
     get_data!(intf, data)
-    X[k + 1] = change_order(model, data.x, :mujoco, :rigidBodyDynamics)
+    X[k + 1] = change_order(model_fixed, data.x, :mujoco, :rigidBodyDynamics)
 
     # Integrate
     # global X[k + 1] = rk4(model, X[k], U[k], simulation_time_step; gains=model.baumgarte_gains)
 end
-anim = animate(model, mvis, X; Δt=simulation_time_step, frames_to_skip=50);
+anim = animate(model_fixed, mvis, X; Δt=simulation_time_step, frames_to_skip=50);
 setanimation!(mvis, anim)
 
 
