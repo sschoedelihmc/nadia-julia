@@ -287,36 +287,36 @@ Q = spdiagm([
         # Pelvis orientation, pelvis translation
         repeat([5e2], 3); repeat([5e3], 3);
         # LEFT_HIP_Z, RIGHT_HIP_Z, SPINE_Z
-        1e2; 1e2; 1e3;
+        100; 100; 1000;
         # LEFT_HIP_X RIGHT_HIP_X SPINE_X
-        1e2; 1e-1; 1e3;
+        100; 0.1; 1000;
         # LEFT_HIP_Y RIGHT_HIP_Y SPINE_Y
-        1e-1; 1e-1; 1e3;
+        0.1; 0.1; 1000;
         # LEFT_KNEE_Y RIGHT_KNEE_Y
         1; 1;
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
-        1e-1; 1e-1; 1e-1; 1e1;
+        0.1; 0.1; 0.1; 10;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
-        1e-1; 1e-1; 1e-1; 0.7;
+        0.1; 0.1; 0.1; 0.7;
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
-        1e-1; 1e-1;
+        0.1; 0.1;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
-        1e-1; 1e-1;
+        0.1; 0.1;
 
         # Pelvis orientation & translation
-        repeat([1e1], 6);
+        repeat([10], 6);
         # LEFT_HIP_Z, RIGHT_HIP_Z, SPINE_Z
-        1e1; 1e1; 1e1;
+        10; 10; 10;
         # LEFT_HIP_X RIGHT_HIP_X SPINE_X
-        1e1; 1e1; 1e1;
+        10; 10; 10;
         # LEFT_HIP_Y RIGHT_HIP_Y SPINE_Y
-        1e1; 1e1; 1e1;
+        10; 10; 10;
         # LEFT_KNEE_Y RIGHT_KNEE_Y
-        1.5e1; 1.5e1; 
+        15; 15; 
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
-        1.5; 1.5; 1e1; 0.1;
+        1.5; 1.5; 10; 0.1;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
-        1.5; 1.5; 1e1; 0.5;
+        1.5; 1.5; 10; 0.5;
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
         1.5; 1.5;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
@@ -325,17 +325,17 @@ Q = spdiagm([
 
 R = spdiagm([
         # LEFT_HIP_Z RIGHT_HIP_Z SPINE_Z
-        7.5e-2; 7.5e-2; 1e-2;
+        0.075; 0.075; 0.01;
         # LEFT_HIP_X RIGHT_HIP_X SPINE_X
-        7.5e-2; 7.5e-2; 1e-2;
+        0.075; 0.075; 0.01;
         # LEFT_HIP_Y RIGHT_HIP_Z SPINE_Y
-        7.5e-2; 7.5e-2; 1e-2;
+        0.075; 0.075; 0.01;
         # LEFT_KNEE_Y RIGHT_KNEE_Y
-        1e-2; 1e-2;
+        0.01; 0.01;
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
-        0.5; 0.5; 1e1; 0.1;
+        0.5; 0.5; 10; 0.1;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
-        0.5; 0.5; 1e1; 0.5;
+        0.5; 0.5; 10; 0.5;
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
         0.5; 0.5;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
@@ -359,7 +359,6 @@ clipboard(Kinf_str)
 maximum(abs.(Kinf))
 
 ##
-
 
 setobject!(vis, Sphere(Point{3, Float64}([-0.004351222979328111, -0.12106285479389704, 0.08180975114086993]), .03))
 
