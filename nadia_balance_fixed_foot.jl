@@ -36,7 +36,9 @@ mvis = init_visualizer(nadia, vis)
 
 # Load equilibrium reference controls and state
 # u_ref = load_object("nadia_balance_u_ref.jld2")
-u_ref = load_object("nadia_balance_u_ref_2.jld2")
+# u_ref = load_object("nadia_balance_u_ref_2.jld2")
+u_ref = load_object("nadia_balance_u_ref_4_central_foot.jld2")
+
 
 # u_ref torques should be in the following order:
 # "LEFT_HIP_Z"                  1
@@ -95,8 +97,8 @@ u_ref = load_object("nadia_balance_u_ref_2.jld2")
 
 # x_ref = load_object("nadia_balance_x_ref.jld2")
 # x_ref = load_object("nadia_balance_x_ref_fourbar.jld2")
-x_ref = load_object("nadia_balance_x_ref_2.jld2")
-# x_ref[7] += 0.064
+# x_ref = load_object("nadia_balance_x_ref_2.jld2")
+x_ref = load_object("nadia_balance_x_ref_4_central_foot.jld2")
 # save_object("nadia_balance_x_ref_fourbar.jld2", x_ref)
 # 4 variables for pelvis orientation (w, x, y, z quaternion)
 # 3 variables for pelvis position in world frame
@@ -152,67 +154,6 @@ x_ref = load_object("nadia_balance_x_ref_2.jld2")
 #   as config but with three variables for orientation 
 #   (generally all zeros for an equilibrium position)
 
-
-
-# for model with four bar knees:
-# 4 variables for pelvis orientation (w, x, y, z quaternion)
-# 3 variables for pelvis position in world frame
-# LEFT_HIP_Z                    8
-# RIGHT_HIP_Z                   9
-# SPINE_Z                       10
-# LEFT_HIP_X                    11
-# RIGHT_HIP_X                   12
-# SPINE_X                       13
-# LEFT_HIP_Y                    14
-# RIGHT_HIP_Y                   15
-# SPINE_Y                       16
-# LEFT_KNEE_SHELL_UPPER_Y       17
-# LEFT_KNEE_LINKAGE_UPPER_Y     18
-# RIGHT_KNEE_SHELL_UPPER_Y      19
-# RIGHT_KNEE_LINKAGE_UPPER_Y    20
-# LEFT_SHOULDER_Y               21
-# RIGHT_SHOULDER_Y              22
-# LEFT_KNEE_SHELL_LOWER_Y       23
-# RIGHT_KNEE_SHELL_LOWER_Y      24
-# LEFT_SHOULDER_X               25
-# RIGHT_SHOULDER_X              26
-# LEFT_ANKLE_Y                  27
-# RIGHT_ANKLE_Y                 28
-# LEFT_SHOULDER_Z               29
-# RIGHT_SHOULDER_Z              30
-# LEFT_ANKLE_X                  31
-# RIGHT_ANKLE_X                 32
-# LEFT_ELBOW_Y                  33
-# RIGHT_ELBOW_Y                 34
-
-# PELVIS VELOCITIES              35-40
-# LEFT_HIP_Z_VEL                 41
-# RIGHT_HIP_Z_VEL                42
-# SPINE_Z_VEL                    43
-# LEFT_HIP_X_VEL                 44
-# RIGHT_HIP_X_VEL                45
-# SPINE_X_VEL                    46
-# LEFT_HIP_Y_VEL                 47
-# RIGHT_HIP_Y_VEL                48
-# SPINE_Y_VEL                    49
-# LEFT_KNEE_SHELL_UPPER_Y_VEL    50
-# LEFT_KNEE_LINKAGE_UPPER_Y_VEL  51
-# RIGHT_KNEE_SHELL_UPPER_Y_VEL   52
-# RIGHT_KNEE_LINKAGE_UPPER_Y_VEL 53
-# LEFT_SHOULDER_Y_VEL            54
-# RIGHT_SHOULDER_Y_VEL           55
-# LEFT_KNEE_SHELL_LOWER_Y_VEL    56
-# RIGHT_KNEE_SHELL_LOWER_Y_VEL   57
-# LEFT_SHOULDER_X_VEL            58
-# RIGHT_SHOULDER_X_VEL           59
-# LEFT_ANKLE_Y_VEL               60
-# RIGHT_ANKLE_Y_VEL              61
-# LEFT_SHOULDER_Z_VEL            62
-# RIGHT_SHOULDER_Z_VEL           63
-# LEFT_ANKLE_X_VEL               64
-# RIGHT_ANKLE_X_VEL              65
-# LEFT_ELBOW_Y_VEL               66
-# RIGHT_ELBOW_Y_VEL              67
 
 # Set pose in visualizer
 # x_ref[11] += 0.1
@@ -289,19 +230,19 @@ Q = spdiagm([
         # LEFT_HIP_Z, RIGHT_HIP_Z, SPINE_Z
         100; 100; 1000;
         # LEFT_HIP_X RIGHT_HIP_X SPINE_X
-        100; 0.1; 1000;
+        70; 500; 10000;
         # LEFT_HIP_Y RIGHT_HIP_Y SPINE_Y
-        0.1; 0.1; 1000;
+        0.5; 5; 1000;
         # LEFT_KNEE_Y RIGHT_KNEE_Y
-        1; 1;
+        50; 1;
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
-        0.1; 0.1; 0.1; 10;
+        4; 4; 0.1; 10;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
-        0.1; 0.1; 0.1; 0.7;
+        4; 4; 0.1; 0.7;
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
-        0.1; 0.1;
+        4; 4;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
-        0.1; 0.1;
+        1; 1;
 
         # Pelvis orientation & translation
         repeat([10], 6);
@@ -312,7 +253,7 @@ Q = spdiagm([
         # LEFT_HIP_Y RIGHT_HIP_Y SPINE_Y
         10; 10; 10;
         # LEFT_KNEE_Y RIGHT_KNEE_Y
-        15; 15; 
+        5; 15; 
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
         1.5; 1.5; 10; 0.1;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
@@ -325,11 +266,11 @@ Q = spdiagm([
 
 R = spdiagm([
         # LEFT_HIP_Z RIGHT_HIP_Z SPINE_Z
-        0.075; 0.075; 0.01;
+        0.07; 0.07; 0.01;
         # LEFT_HIP_X RIGHT_HIP_X SPINE_X
-        0.075; 0.075; 0.01;
+        0.07; 0.01; 0.01;
         # LEFT_HIP_Y RIGHT_HIP_Z SPINE_Y
-        0.075; 0.075; 0.01;
+        0.07; 0.07; 0.01;
         # LEFT_KNEE_Y RIGHT_KNEE_Y
         0.01; 0.01;
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
