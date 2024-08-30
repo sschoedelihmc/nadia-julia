@@ -1,2 +1,5 @@
 .vscode/*
 MUJOCO_LOG.TXT
+*.png
+*.zip
+NadiaSimpleKnees*

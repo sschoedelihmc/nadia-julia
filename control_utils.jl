@@ -3,27 +3,27 @@ using BlockDiagonals
 using ProgressMeter
 
 # Infinite horizon LQR solver
-function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8, verbose=false)
-    P = Qf
-    K = zero(B')
-    K_prev = deepcopy(K)
-    @showprogress for i = 1:max_iters
-        K = (R .+ B'*P*B) \ (B'*P*A)
-        push!(Ks, copy(K))
-        P = Q + A'P*(A - B*K)
-        push!(Ps, copy(P))
+# function ihlqr(A, B, Q, R, Qf; max_iters = 1000, tol = 1e-8, verbose=false)
+#     P = Qf
+#     K = zero(B')
+#     K_prev = deepcopy(K)
+#     @showprogress for i = 1:max_iters
+#         K = (R .+ B'*P*B) \ (B'*P*A)
+#         push!(Ks, copy(K))
+#         P = Q + A'P*(A - B*K)
+#         push!(Ps, copy(P))
         
-        if norm(K - K_prev, 2) < tol
-            if verbose
-                display("ihlqr converged in " * string(i) * " iterations")
-            end
-            return K, P
-        end
-        K_prev = deepcopy(K)
-    end
-    @error "ihlqr didn't converge", norm(K - (R .+ B'*P*B) \ (B'*P*A), 2)
-    return K, P
-end
+#         if norm(K - K_prev, 2) < tol
+#             if verbose
+#                 display("ihlqr converged in " * string(i) * " iterations")
+#             end
+#             return K, P
+#         end
+#         K_prev = deepcopy(K)
+#     end
+#     @error "ihlqr didn't converge", norm(K - (R .+ B'*P*B) \ (B'*P*A), 2)
+#     return K, P
+# end
 
 # Quaternion stuff
 
