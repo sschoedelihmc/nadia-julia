@@ -39,7 +39,6 @@ mvis = init_visualizer(nadia, vis)
 # u_ref = load_object("nadia_balance_u_ref_2.jld2")
 u_ref = load_object("nadia_balance_u_ref_4_central_foot.jld2")
 
-
 # u_ref torques should be in the following order:
 # "LEFT_HIP_Z"                  1
 # "RIGHT_HIP_Z"                 2
@@ -236,13 +235,13 @@ Q = spdiagm([
         # LEFT_KNEE_Y RIGHT_KNEE_Y
         50; 1;
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
-        4; 4; 0.1; 10;
+        0.4; 0.4; 0.1; 10;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
-        4; 4; 0.1; 0.7;
+        0.4; 0.4; 0.1; 0.7;
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
-        4; 4;
+        0.4; 0.4;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
-        1; 1;
+        1.2; 1.2;
 
         # Pelvis orientation & translation
         repeat([10], 6);
@@ -255,20 +254,20 @@ Q = spdiagm([
         # LEFT_KNEE_Y RIGHT_KNEE_Y
         5; 15; 
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
-        1.5; 1.5; 10; 0.1;
+        0.3; 0.3; 10; 0.1;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
-        1.5; 1.5; 10; 0.5;
+        0.3; 0.3; 10; 0.5;
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
-        1.5; 1.5;
+        0.3; 0.3;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
-        1.5; 1.5;
+        0.3; 0.3;
     ])
 
 R = spdiagm([
         # LEFT_HIP_Z RIGHT_HIP_Z SPINE_Z
         0.07; 0.07; 0.01;
         # LEFT_HIP_X RIGHT_HIP_X SPINE_X
-        0.07; 0.01; 0.01;
+        0.07; 0.1; 0.01;
         # LEFT_HIP_Y RIGHT_HIP_Z SPINE_Y
         0.07; 0.07; 0.01;
         # LEFT_KNEE_Y RIGHT_KNEE_Y
@@ -280,7 +279,7 @@ R = spdiagm([
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
         0.5; 0.5;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
-        1.0; 1.0
+        0.5; 0.5
     ])
 
 Kinf, Qf = ihlqr(ADynReduced, BDynReduced, Q, R, Q; max_iters = 200000, verbose=true);
