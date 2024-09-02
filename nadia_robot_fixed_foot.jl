@@ -79,13 +79,13 @@ function dynamics(model::NadiaFixed, x::AbstractVector{T1}, u::AbstractVector{T2
     return [dyn_result.q̇; dyn_result.v̇]
 end
 
-function rk4(model::NadiaFixed, x, u, h; gains=RigidBodyDynamics.default_constraint_stabilization_gains(Float64))
-    k1 = dynamics(model, x, u; gains=gains)
-    k2 = dynamics(model, x + h/2*k1, u; gains=gains)
-    k3 = dynamics(model, x + h/2*k2, u; gains=gains)
-    k4 = dynamics(model, x + h*k3, u; gains=gains)
-    return x + h/6*(k1 + 2*k2 + 2*k3 + k4)
-end
+# function rk4(model::NadiaFixed, x, u, h; gains=RigidBodyDynamics.default_constraint_stabilization_gains(Float64))
+#     k1 = dynamics(model, x, u; gains=gains)
+#     k2 = dynamics(model, x + h/2*k1, u; gains=gains)
+#     k3 = dynamics(model, x + h/2*k2, u; gains=gains)
+#     k4 = dynamics(model, x + h*k3, u; gains=gains)
+#     return x + h/6*(k1 + 2*k2 + 2*k3 + k4)
+# end
 
 function init_visualizer(model::NadiaFixed, vis::Visualizer)
     delete!(vis)

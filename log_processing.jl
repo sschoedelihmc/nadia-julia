@@ -69,7 +69,7 @@ setanimation!(mvis, anim)
 
 # Save
 dt = 0.003
-joinpath(@__DIR__, "in_place_walking.jld2") X_ref U_ref dt
+@save joinpath(@__DIR__, "in_place_walking.jld2") X_ref U_ref dt
 
 open("test.txt", "w") do file
     for name in names(df) 

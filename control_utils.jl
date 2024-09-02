@@ -25,6 +25,19 @@ using ProgressMeter
 #     return K, P
 # end
 
+function get_PD_gains(model::PinnZooModel) # Taken from NadiaHighLevelControllerParameters, getDesiredJointBehaviorForWalkingNotLoaded
+    leg_p = diagm(zeros(12))
+    spine_p = diagm([0; 100; 100])
+    arm_p = diagm(repeat([3; 3; 3; 2.5], 2))
+
+    leg_d = diagm(repeat([0.05; 10; 10; 15; 15; 10], 2))
+    spine_d = diagm([0.05; 6; 6])
+    arm_d = diagm(repeat([7.5; 4; 4; 4], 2))
+
+    K_pd = [zeros(model.nu, 7) BlockDiagonal([leg_p, spine_p, arm_p]) zeros(model.nu, 6) BlockDiagonal([leg_d, spine_d, arm_d])]
+    return K_pd
+end
+
 # Quaternion stuff
 
 function hat(v)
