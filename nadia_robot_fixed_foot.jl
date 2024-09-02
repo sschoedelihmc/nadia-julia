@@ -17,6 +17,7 @@ struct NadiaFixed
     urdfpath::String
     nq::Int
     nv::Int
+    nu::Int
     fourbarknee::Bool
     function NadiaFixed(urdfpath; fourbarknee=false)
 
@@ -38,63 +39,12 @@ struct NadiaFixed
 
         attach!(mech, world, right_foot, right_foot_fixed_joint, joint_pose=world_to_joint)
 
-        # left_knee_linkage = findbody(mech, "LEFT_KNEE_LINKAGE_LINK")
-        # left_shin = findbody(mech, "LEFT_SHIN_LINK")
-        # left_knee_linkage_joint = Joint("left_knee_linkage_joint", Revolute{Float64}([0.0, 1.0, 0.0]))
-        # left_knee_linkage_translation = SA[-0.01711428, 0.0, -0.0883578]
-        # left_linkage_to_shin_joint = Transform3D(
-        #     frame_before(left_knee_linkage_joint),
-        #     default_frame(left_knee_linkage),
-        #     left_knee_linkage_translation
-        # )
-        # left_shin_linkage_translation = SA[0.03830222, 0.0, 0.03213938]
-        # left_shin_to_linkage_joint = Transform3D(
-        #     default_frame(left_shin),
-        #     frame_after(left_knee_linkage_joint),
-        #     left_shin_linkage_translation
-        # )
-        # attach!(mech, left_knee_linkage, left_shin, left_knee_linkage_joint,
-        #     joint_pose=left_linkage_to_shin_joint,
-        #     successor_pose=left_shin_to_linkage_joint
-        # )
-
-
-        # right_knee_linkage = findbody(mech, "RIGHT_KNEE_LINKAGE_LINK")
-        # right_shin = findbody(mech, "RIGHT_SHIN_LINK")
-        # right_knee_linkage_joint = Joint("right_knee_linkage_joint", Revolute{Float64}([0.0, 1.0, 0.0]))
-        # right_knee_linkage_translation = SA[-0.01711428, 0.0, -0.0883578]
-        # right_linkage_to_shin_joint = Transform3D(
-        #     frame_before(right_knee_linkage_joint),
-        #     default_frame(right_knee_linkage),
-        #     right_knee_linkage_translation
-        # )
-        # # right_shin_linkage_translation = SA[-0.03830222, 0.0, -0.03213938]
-        # right_shin_linkage_translation = SA[0.03830222, 0.0, 0.03213938]
-        # right_shin_to_linkage_joint = Transform3D(
-        #     default_frame(right_shin),
-        #     frame_after(right_knee_linkage_joint),
-        #     right_shin_linkage_translation
-        # )
-        # attach!(mech, right_knee_linkage, right_shin, right_knee_linkage_joint,
-        #     joint_pose=right_linkage_to_shin_joint,
-        #     successor_pose=right_shin_to_linkage_joint
-        # )
-
-
-
-        # # Stabilization gains for non-tree joints
-        # baumgarte_gains = Dict(
-        #     JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0)), # angular, linear
-        #     JointID(left_knee_linkage_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0)),
-        #     JointID(right_knee_linkage_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0))
-        # )
-
         # Stabilization gains for non-tree joints
         baumgarte_gains = Dict(
             JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0)) # angular, linear
         )
 
-        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech), fourbarknee)
+        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech), num_velocities(mech), fourbarknee)
     end
 end
 
@@ -102,8 +52,6 @@ function dynamics(model::NadiaFixed, x::AbstractVector{T1}, u::AbstractVector{T2
     T = promote_type(T1, T2)
     state = model.statecache[T]
     dyn_result = model.dyn_result_cache[T]
-
-    # x = [rptoq(x[1:3]); x[4:end]]
 
     x[1:4] /= norm(x[1:4]) # normalize quaternion
 
