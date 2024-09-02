@@ -18,8 +18,8 @@ struct NadiaFixed
     nq::Int
     nv::Int
     nu::Int
-    fourbarknee::Bool
-    function NadiaFixed(urdfpath; fourbarknee=false)
+    torque_limits
+    function NadiaFixed(urdfpath)
 
         # Create robot and fix right foot to world (without deleting pelvis)
         mech = parse_urdf(urdfpath, floating=true, remove_fixed_tree_joints=true) 
@@ -44,7 +44,7 @@ struct NadiaFixed
             JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0)) # angular, linear
         )
 
-        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech), num_velocities(mech), fourbarknee)
+        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech), num_velocities(mech))
     end
 end
 

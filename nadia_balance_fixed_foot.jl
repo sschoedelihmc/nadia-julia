@@ -23,7 +23,7 @@ include("control_utils.jl")
 # urdfpath = joinpath(@__DIR__, "nadia_V17_description/urdf/nadiaV17.fullRobot.simpleKnees.cycloidArms.urdf");
 urdfpath = joinpath(@__DIR__, "nadia_V17_description/urdf/nadiaV17.fullRobot.simpleKnees.extended.cycloidArms.urdf");
 # urdfpath = joinpath(@__DIR__, "nadia_V17_description/urdf/nadiaV17.fullRobot.cycloidArms4DoF.withFourBarLinkage.urdf");
-nadia = NadiaFixed(urdfpath; fourbarknee=false)
+nadia = NadiaFixed(urdfpath)
 vis = Visualizer()
 render(vis)
 
@@ -156,11 +156,7 @@ x_ref = load_object("nadia_balance_x_ref_4_central_foot.jld2")
 
 # Set pose in visualizer
 # x_ref[11] += 0.1
-if nadia.fourbarknee
-    set_configuration!(mvis, simple_to_four_bar(x_ref)[1:nadia.nq])
-else
-    set_configuration!(mvis, x_ref[1:nadia.nq])
-end
+set_configuration!(mvis, x_ref[1:nadia.nq])
 
 ##
 
@@ -330,7 +326,7 @@ for k = 1:N
     global Δx̃ = [qtorp(L(x_ref[1:4])'*X[k][1:4]); X[k][5:end] - x_ref[5:end]]
   
     # add some noise
-    # Δx̃ += 0.1 * randn(length(Δx̃))
+    Δx̃ += 0.01 * randn(length(Δx̃))
 
     # Compute controls for this time step
     global U[k] = u_ref - Kinf*Δx̃
@@ -348,10 +344,7 @@ setanimation!(mvis, anim)
 plot((hcat(U... ) .- u_ref)'[:,4])
 # plot(hcat(X...)')
 
-
-
 include("scsdata.jl")
-
 
 taus = zeros(23)
 for (jointName, index) in TORQUES_ORDER

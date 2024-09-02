@@ -15,7 +15,7 @@ include("control_utils.jl")
 
 # --------these three are global variables------------
 urdfpath = joinpath(@__DIR__, "nadia_V17_description/urdf/nadiaV17.fullRobot.simpleKnees.extended.cycloidArms.urdf");
-nadia = NadiaFixed(urdfpath; fourbarknee=false)
+nadia = NadiaFixed(urdfpath)
 vis = Visualizer()
 render(vis)
 
