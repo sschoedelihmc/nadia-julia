@@ -7,7 +7,7 @@ function quasi_shift_foot_lift()
     u_lin = vcat(calc_continuous_eq(model, x_lin)...)
 
     # Create shift and lift state
-    shift_ang = 1*pi/180 # 14 gets CoM in foot center
+    shift_ang = -2*pi/180 # 14 gets CoM in foot center
     x_shift = [0; -0.1652048243975755; 0.8694956181773023; 1; zeros(4); shift_ang; -bend_ang; 2*bend_ang; -bend_ang; - shift_ang; zeros(1);
                 shift_ang; -bend_ang; 2*bend_ang; -bend_ang; - shift_ang; zeros(3); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)]
     x_shift[3] -= mean(kinematics(model, x_shift)[3:3:end])
