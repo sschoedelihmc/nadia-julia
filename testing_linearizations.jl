@@ -37,15 +37,22 @@ B = E_jac_T*FiniteDiff.finite_difference_jacobian(_u -> continuous_dynamics(mode
 C = E_jac_T*FiniteDiff.finite_difference_jacobian(_u -> continuous_dynamics(model, x_lin, u_lin[1:model.nu], _u), u_lin[model.nu + 1:end]);
 J = [kinematics_jacobian(model, x_lin)*E_jac; kinematics_velocity_jacobian(model, x_lin)*E_jac]
 
+# Look at mass matrix conditioning
+test = (FiniteDiff.finite_difference_jacobian(_x -> -M_func(model, _x)\C_func(model, _x), x_lin)*E_jac)[:, model.nv + 1:end]
+
+# Redo J to not be rank deficient
+P = zeros(12, 24); P[CartesianIndex.(1:12, [1, 2, 3, 4, 6, 9, 13, 14, 15, 16, 18, 21])] .= 1;
+J = [P*kinematics_jacobian(model, x_lin)*E_jac; P*kinematics_velocity_jacobian(model, x_lin)*E_jac]
+
 # The dynamics system we are solving for (in x_{k+1} and λ_k)) is
 # (I - dt*A)x_{k+1} - J'λ_k = x_k + dt*Bu_k
 # s.t. Jx_{k+1} - 1/ρPλ_k = 0
 # x ∈ R^58, u ∈ R^23, λ ∈ R^48 and J is 48 × 58 but rank(J) = 24. By default P = I(48)
 dt = intf.m.opt.timestep
-ρ = 1e5
-P = I(48) # Regularizes everything, adds in artificial DoFs
+ρ = 0
+P = I(size(J, 1)) # Regularizes everything, adds in artificial DoFs
 # P = svd(J').V[:, 25:end]*svd(J').V[:, 25:end]' # Only regularizes things not in the constraint space
-kkt_sys = [I-dt*A J'; J -1/ρ*P]
+kkt_sys = [I-dt*A J'; J zeros(size(J, 1), size(J, 1))]
 cond(kkt_sys)
 Ā = (kkt_sys \ [I(model.nx - 1); zeros(size(J, 1), model.nx - 1)])[1:model.nx - 1, :]
 B̄ = (kkt_sys \ [dt*B; zeros(size(J, 1), model.nu)])[1:model.nx - 1, :]
