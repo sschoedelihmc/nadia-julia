@@ -64,35 +64,6 @@ u_ref = load_object("nadia_balance_u_ref_4_central_foot.jld2")
 # "LEFT_ELBOW_Y"                22
 # "RIGHT_ELBOW_Y"               23
 
-# for model with four bar knees:
-# LEFT_HIP_Z                    1
-# RIGHT_HIP_Z                   2
-# SPINE_Z                       3
-# LEFT_HIP_X                    4
-# RIGHT_HIP_X                   5
-# SPINE_X                       6
-# LEFT_HIP_Y                    7
-# RIGHT_HIP_Y                   8
-# SPINE_Y                       9
-# LEFT_KNEE_SHELL_UPPER_Y       10
-# LEFT_KNEE_LINKAGE_UPPER_Y     11
-# RIGHT_KNEE_SHELL_UPPER_Y      12
-# RIGHT_KNEE_LINKAGE_UPPER_Y    13
-# LEFT_SHOULDER_Y               14
-# RIGHT_SHOULDER_Y              15
-# LEFT_KNEE_SHELL_LOWER_Y       16
-# RIGHT_KNEE_SHELL_LOWER_Y      17
-# LEFT_SHOULDER_X               18
-# RIGHT_SHOULDER_X              19
-# LEFT_ANKLE_Y                  20
-# RIGHT_ANKLE_Y                 21
-# LEFT_SHOULDER_Z               22
-# RIGHT_SHOULDER_Z              23
-# LEFT_ANKLE_X                  24
-# RIGHT_ANKLE_X                 25
-# LEFT_ELBOW_Y                  26
-# RIGHT_ELBOW_Y                 27
-
 
 # x_ref = load_object("nadia_balance_x_ref.jld2")
 # x_ref = load_object("nadia_balance_x_ref_fourbar.jld2")

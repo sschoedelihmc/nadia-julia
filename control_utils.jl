@@ -127,3 +127,65 @@ function newtons_method(z0::Vector, res_fx::Function, res_jac_fx::Function, meri
     end
     error("Newton's method did not converge")
 end
+
+
+
+
+
+function gen_sparse_mpc_qp(Ad, Bd, Q, R, Qf, horizon; A_add = Nothing, l_add = Nothing, u_add = Nothing)
+    nx, nu = size(Ad, 1), size(Bd, 2)
+
+    # Cost
+    H = blockdiag([blockdiag(R, Q) for k = 1:horizon - 1]..., R, sparse(Qf))
+    g = zeros(size(H, 1))
+
+    # Dynamics constraint
+    A = kron(I(horizon), [Bd -I])
+    A[nx + 1:end, nu + 1:end - nx] += kron(I(horizon - 1), [Ad zeros(nx, nu)])
+    l = zeros(size(A, 1))
+    u = zeros(size(A, 1))
+
+    # If there are additional constraints, append them
+    if A_add != Nothing
+        A = [A; A_add]
+        l = [l; l_add]
+        u = [u; u_add]
+    end
+
+    return Matrix(H), g, A, l, u
+end
+
+function gen_condensed_mpc_qp(Ad, Bd, Q, R, Qf, horizon, A_add, l_add, u_add, K = Nothing)
+    nx, nu = size(Ad, 1), size(Bd, 2)
+
+    # Gain matrix defaults to zero
+    if K === Nothing
+        K = zeros(nu, nx)
+    end
+
+    # Get the sparse problem (without additional constraints)
+    H_sp, g_sp, _ = gen_sparse_mpc_qp(Ad, Bd, Q, R, Qf, horizon)
+
+    # Define F and G such that z = Fz̄ + Gx0 to transform the sparse problem into the dense one
+    # z = [u0; x1; u1; x2; u2; ...]
+    # z̄ = [Δu0; Δu1; Δu2; ...] where uk = -Kxk + Δuk
+    F = kron(Diagonal(I, horizon), [I; Bd])
+    for k = 1:horizon - 1
+        F += kron(diagm(-k => ones(horizon - k)), 
+                [ -K*(Ad - Bd*K)^(k - 1)*Bd;
+                    (Ad - Bd*K)^k*Bd        ])
+    end
+
+    G = vcat([[-K*(Ad - Bd*K)^(k - 1); (Ad - Bd*K)^k] for k = 1:horizon]...)
+
+    # Convert the sparse problem cost
+    H = F'*H_sp*F
+    g_x0 = F'*H_sp*G # Initial condition becomes part of cost
+    g = g_x0*zeros(nx) + F'*g_sp
+
+    # Add additional constraints if they exist
+    A = A_add*F
+    lu_x0 = -A_add*G # Initial condition is also part of the constraints
+
+    return H, g, A, l_add, u_add, g_x0, lu_x0
+end

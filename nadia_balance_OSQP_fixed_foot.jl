@@ -3,6 +3,7 @@ using Pkg; Pkg.activate(@__DIR__)
 using JLD2
 using Plots
 using ReLUQP
+using OSQP
 
 using MeshCat
 using MeshCatMechanisms
@@ -119,12 +120,17 @@ Kinf, Qf = ihlqr(ADynReduced, BDynReduced, Q, R, Q; max_iters = 200000, verbose=
 
 # Define additional constraints for the QP
 horizon = 2;
-A_torque = kron(I(horizon), [I(nadia.nu) zeros(nadia.nu, nadia.nq+nadia.nv)]);
+A_torque = kron(I(horizon), [I(nadia.nu) zeros(nadia.nu, nadia.nq-1+nadia.nv)]);
 l_torque = repeat(-nadia.torque_limits-u_ref, horizon);
 u_torque = repeat(nadia.torque_limits-u_ref, horizon);
 
 # Setup QP
-H, g, A, l, u, g_x0, lu_x0 = gen_condensed_mpc_qp(Ad, Bd, Q, R, Qf, horizon, A_torque, l_torque, u_torque, K);
+H, g, A, l, u, g_x0, lu_x0 = gen_condensed_mpc_qp(ADynReduced, BDynReduced, Q, R, Qf, horizon, A_torque, l_torque, u_torque, Kinf);
+
+# Setup solver
+# m = ReLUQP.setup(H, g, A, l, u, verbose = false, eps_primal=1e-2, eps_dual=1e-2, max_iters=10, iters_btw_checks=1);
+m = OSQP.Model();
+OSQP.setup!(m; P=SparseMatrixCSC(H), q=g, A=SparseMatrixCSC(A), l=l, u=u, verbose=false, eps_primal=1e-2, eps_dual=1e-2, max_iters=10, iters_btw_checks=1);
 
 ##
 
@@ -137,19 +143,30 @@ U = [zeros(length(u_ref)) for _ = 1:N];
 X[1] = deepcopy(x_ref);
 X[1][nadia.nq + 5] = 0.05; # Perturb i.c.
 
+# Warmstart solver
+Δx̃ = [qtorp(L(x_ref[1:4])'*X[1][1:4]); X[1][5:end] - x_ref[5:end]]
+# ReLUQP.update!(m, g = g + g_x0*Δx̃, l = l + lu_x0*Δx̃, u = u + lu_x0*Δx̃);
+# m.opts.max_iters = 4000;
+# m.opts.check_convergence = false;
+# ReLUQP.solve(m);
+# m.opts.max_iters = 10;
+OSQP.update!(m; q=g+g_x0*Δx̃, l=l+lu_x0*Δx̃, u=u+lu_x0*Δx̃)
+
 # Run simulation
 for k = 1:N
     # Get error
     global Δx̃ = [qtorp(L(x_ref[1:4])'*X[k][1:4]); X[k][5:end] - x_ref[5:end]]
-  
-    # add some noise
-    # Δx̃ += 0.01 * randn(length(Δx̃))
 
-    # Compute controls for this time step
-    global U[k] = u_ref - Kinf*Δx̃
+    # Update solver
+    # ReLUQP.update!(m, g = g + g_x0*Δx̃, l = l + lu_x0*Δx̃, u = u + lu_x0*Δx̃)
+    OSQP.update!(m; q=g+g_x0*Δx̃, l=l+lu_x0*Δx̃, u=u+lu_x0*Δx̃)
+
+    # Solve and get controls
+    # results = ReLUQP.solve(m)
+    results = OSQP.solve!(m)
+    global U[k] = results.x[1:nadia.nu] - Kinf*Δx̃
 
     # Integrate
-    global X[k + 1] = rk4(nadia, X[k], U[k], simulation_time_step; gains=nadia.baumgarte_gains)
+    global X[k + 1] = rk4(nadia, X[k], clamp.(u_ref + U[k], -nadia.torque_limits, nadia.torque_limits), simulation_time_step)
 end
 anim = animate(nadia, mvis, X; Δt=simulation_time_step, frames_to_skip=50);
-setanimation!(mvis, anim)

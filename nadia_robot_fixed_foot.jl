@@ -18,7 +18,7 @@ struct NadiaFixed
     nq::Int
     nv::Int
     nu::Int
-    torque_limits
+    torque_limits::Vector{Float64}
     function NadiaFixed(urdfpath)
 
         # Create robot and fix right foot to world (without deleting pelvis)
@@ -44,7 +44,36 @@ struct NadiaFixed
             JointID(right_foot_fixed_joint) => SE3PDGains(PDGains(3000.0, 200.0), PDGains(3000.0, 200.0)) # angular, linear
         )
 
-        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech), baumgarte_gains, urdfpath, num_positions(mech), num_velocities(mech), num_velocities(mech))
+        torque_limits = [ # TODO: set these with values from SCS
+            360.0,  # LEFT_HIP_Z
+            740.0,  # RIGHT_HIP_Z
+            890.0,  # SPINE_Z
+            840.0,  # LEFT_HIP_X
+            530.0,  # RIGHT_HIP_X
+            275.0,  # SPINE_X
+            106.0,  # LEFT_HIP_Y
+            275.0,  # RIGHT_HIP_Y
+            445.0,  # SPINE_Y
+            530.0,  # LEFT_KNEE_Y
+            300.0,  # RIGHT_KNEE_Y
+            840.0,  # LEFT_SHOULDER_Y
+            87.0,   # RIGHT_SHOULDER_Y
+            87.0,   # LEFT_ANKLE_Y
+            890.0,  # RIGHT_ANKLE_Y
+            99.0,   # LEFT_SHOULDER_X
+            99.0,   # RIGHT_SHOULDER_X
+            740.0,  # LEFT_ANKLE_X
+            63.0,   # RIGHT_ANKLE_X
+            63.0,   # LEFT_SHOULDER_Z
+            360.0,  # RIGHT_SHOULDER_Z
+            112.0,  # LEFT_ELBOW_Y
+            112.0   # RIGHT_ELBOW_Y
+        ]
+
+        new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech),
+            baumgarte_gains, urdfpath,
+            num_positions(mech), num_velocities(mech), 23,
+            torque_limits)
     end
 end
 
