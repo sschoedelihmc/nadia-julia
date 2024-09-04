@@ -27,7 +27,7 @@ data = init_data(model, intf, preferred_monitor=3);
 
 # Set up standing i.c. and solve for stabilizing control
 let
-    global K_pd, K_qp
+    global K_pd, K_qp, kkt_sys
 ang = 40*pi/180;
 K_pd = [zeros(model.nu, 7) diagm(1e1*ones(model.nu)) zeros(model.nu, 6) 1e0diagm(ones(model.nu))]
 x_lin = [0; 0; 0.88978022; 1; 0; 0; 0; zeros(2); -ang; 2*ang; -ang; zeros(3); -ang; 2*ang; -ang; zeros(4); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)];
@@ -49,7 +49,7 @@ J = [kinematics_jacobian(model, x_lin)*E_jac; kinematics_velocity_jacobian(model
 # x ∈ R^58, u ∈ R^23, λ ∈ R^48 and J is 48 × 58 but rank(J) = 24. By default P = I(48)
 
 # Parameters (horizon, timestep, penalty, sizing)
-N = 2000;
+N = 10;
 dt = 0.002;
 ρ = 1e5;
 nΔx, nΔu, nc = model.nx - 1, model.nu + model.nc*3*2, size(J, 1)
@@ -86,7 +86,7 @@ qp_b_dyn = zeros((N+1)*nΔx);
 qp_A_dyn[ci[1],Δxi[1]] = I(nΔx); # Initial condition constraint
 for i = 1:N
     qp_A_dyn[ci[i+1],Δxi[i]] = I(nΔx)
-    qp_A_dyn[ci[i+1],Δui[i]] = [dt*B -J']
+    qp_A_dyn[ci[i+1],Δui[i]] = [dt*B J']
     qp_A_dyn[ci[i+1],Δxi[i+1]] = (dt*A - I)
 end
 qp_b_dyn[ci[1]] .= 0; # Initial condition constraint (assume no Δ during setup)
@@ -96,10 +96,11 @@ qp_A_foot = spzeros(N*nc, nΔz);
 qp_b_foot = zeros(N*nc);
 cfoot = [(k - 1)*nc .+ (1:nc) for k = 1:N];
 for i = 1:N
-    qp_A_foot[cfoot[i],Δui[i]] = [zeros(nc, model.nu) 1/ρ*I(nc)]
-    qp_A_foot[cfoot[i],Δxi[i + 1]] = -J
+    qp_A_foot[cfoot[i],Δui[i]] = [zeros(nc, model.nu) -1/ρ*I(nc)]
+    qp_A_foot[cfoot[i],Δxi[i + 1]] = J
 end
 
+global test_mpc, qp_A, qp_H
 # Assemble the problem
 qp_A = [qp_A_dyn; qp_A_foot];
 qp_b = [qp_b_dyn; qp_b_foot];
@@ -118,6 +119,12 @@ kkt_lhs_K = hcat([copy(kkt_lhs) for _ = 1:nΔx]...);
 kkt_lhs_K[nΔz .+ (1:nΔx), :] = I(nΔx);
 res_K = kkt_sys_factor \ kkt_lhs_K;
 K_qp = -res_K[Δui[1][1:model.nu], :]
+
+nc = size(J, 1)
+test_mpc = LinMPC(model, x_lin, [u_lin; zeros(model.nc*3)], [I dt*B J' (dt*A - I)], Q, R, Qf, N,
+            Vector{NamedTuple}([(C=[zeros(nc, model.nx - 1 + model.nu) -1/ρ*I(nc) J], l = zeros(nc), u = zeros(nc))]), dt=dt);
+
+
 end
 # Simulate on the nonlinear system
 let 
