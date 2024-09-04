@@ -26,8 +26,10 @@ data = init_data(model, intf, preferred_monitor=3);
     # global K_pd, K_inf
 
 # Set up standing i.c. and solve for stabilizing control
+let
+    global K_pd, K_qp
 ang = 40*pi/180;
-K_pd = [zeros(model.nu, 7) diagm(1e1*ones(model.nu)) zeros(model.nu, 6) 5e0diagm(ones(model.nu))]
+K_pd = [zeros(model.nu, 7) diagm(1e1*ones(model.nu)) zeros(model.nu, 6) 1e0diagm(ones(model.nu))]
 x_lin = [0; 0; 0.88978022; 1; 0; 0; 0; zeros(2); -ang; 2*ang; -ang; zeros(3); -ang; 2*ang; -ang; zeros(4); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)];
 data.x = copy(x_lin);
 set_data!(model, intf, data);
@@ -47,8 +49,8 @@ J = [kinematics_jacobian(model, x_lin)*E_jac; kinematics_velocity_jacobian(model
 # x ∈ R^58, u ∈ R^23, λ ∈ R^48 and J is 48 × 58 but rank(J) = 24. By default P = I(48)
 
 # Parameters (horizon, timestep, penalty, sizing)
-N = 50;
-dt = 0.01;
+N = 2000;
+dt = 0.002;
 ρ = 1e5;
 nΔx, nΔu, nc = model.nx - 1, model.nu + model.nc*3*2, size(J, 1)
 nΔz = nΔx*(N + 1) + nΔu*N
@@ -59,9 +61,11 @@ nΔz = nΔx*(N + 1) + nΔu*N
 ci = [(nΔx)*(i-1) .+ (1:nΔx)  for i = 1:N + 1];
 
 # Set up cost hessian
-Q = diagm([1e4ones(model.nv); 1e-1ones(model.nv)]);
-R = diagm([1e-4ones(model.nu); 0*ones(model.nc*3*2)]);
-Qf = diagm([1e5ones(model.nv); 25e0ones(model.nv)]); # Todo maybe init with ihlqr
+Q = diagm([1e4ones(model.nv); 1e0ones(model.nv)]);
+R = diagm([1e-2ones(model.nu); 0*ones(model.nc*3*2)]);
+Qf = copy(Q)
+
+# test = LinMPC(model, x_lin, u_lin, [-I -dt*B])
 # Cost function
 qp_H = spzeros(nΔz, nΔz);
 qp_g = zeros(nΔz);
@@ -82,8 +86,8 @@ qp_b_dyn = zeros((N+1)*nΔx);
 qp_A_dyn[ci[1],Δxi[1]] = I(nΔx); # Initial condition constraint
 for i = 1:N
     qp_A_dyn[ci[i+1],Δxi[i]] = I(nΔx)
-    qp_A_dyn[ci[i+1],Δui[i]] = [dt*B J']
-    qp_A_dyn[ci[i+1],Δxi[i+1]] = (I - dt*A)
+    qp_A_dyn[ci[i+1],Δui[i]] = [dt*B -J']
+    qp_A_dyn[ci[i+1],Δxi[i+1]] = (dt*A - I)
 end
 qp_b_dyn[ci[1]] .= 0; # Initial condition constraint (assume no Δ during setup)
 
@@ -93,7 +97,7 @@ qp_b_foot = zeros(N*nc);
 cfoot = [(k - 1)*nc .+ (1:nc) for k = 1:N];
 for i = 1:N
     qp_A_foot[cfoot[i],Δui[i]] = [zeros(nc, model.nu) 1/ρ*I(nc)]
-    qp_A_foot[cfoot[i],Δxi[i + 1]] = J
+    qp_A_foot[cfoot[i],Δxi[i + 1]] = -J
 end
 
 # Assemble the problem
@@ -109,6 +113,12 @@ println(rank(kkt_sys_factor), " ", size(kkt_sys_factor))
 kkt_lhs = [qp_g; qp_b]; kkt_lhs[nΔz .+ (1:nΔx)] = Δx;
 res = kkt_sys_factor \ kkt_lhs;
 
+# Test to get K
+kkt_lhs_K = hcat([copy(kkt_lhs) for _ = 1:nΔx]...);
+kkt_lhs_K[nΔz .+ (1:nΔx), :] = I(nΔx);
+res_K = kkt_sys_factor \ kkt_lhs_K;
+K_qp = -res_K[Δui[1][1:model.nu], :]
+end
 # Simulate on the nonlinear system
 let 
     x_ref = quasi_shift_foot_lift(shift_ang = 2.5)

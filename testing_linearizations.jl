@@ -26,7 +26,7 @@ data = init_data(model, intf, preferred_monitor=3);
 let
     global K_pd, K_inf
 ang = 40*pi/180;
-K_pd = [zeros(model.nu, 7) diagm(0*ones(model.nu)) zeros(model.nu, 6) 1e1diagm(ones(model.nu))]
+K_pd = [zeros(model.nu, 7) diagm(1e1*ones(model.nu)) zeros(model.nu, 6) 1e0diagm(ones(model.nu))]
 x_lin = [0; 0; 0.88978022; 1; 0; 0; 0; zeros(2); -ang; 2*ang; -ang; zeros(3); -ang; 2*ang; -ang; zeros(4); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)];
 data.x = copy(x_lin);
 set_data!(model, intf, data);
@@ -49,6 +49,7 @@ J = [kinematics_jacobian(model, x_lin)*E_jac; kinematics_velocity_jacobian(model
 # s.t. Jx_{k+1} - 1/ρPλ_k = 0
 # x ∈ R^58, u ∈ R^23, λ ∈ R^48 and J is 48 × 58 but rank(J) = 24. By default P = I(48)
 dt = intf.m.opt.timestep
+dt = 0.002
 ρ = 1e5
 P = I(size(J, 1)) # Regularizes everything, adds in artificial DoFs
 # P = svd(J').V[:, 25:end]*svd(J').V[:, 25:end]' # Only regularizes things not in the constraint space
@@ -66,9 +67,9 @@ end
 
 # Calculate ihlqr
 P_range = I - svd(J).V[:, 1:24]*svd(J).V[:, 1:24]'
-Q = diagm([1e3ones(model.nv); 5e0ones(model.nv)])
+Q = diagm([1e4ones(model.nv); 1e0ones(model.nv)])
 Q = 0.5*(Q + Q')
-R = diagm(1e-3ones(model.nu));
+R = diagm(1e-2ones(model.nu));
 K_inf = lqr(Discrete, Ā, B̄, Q, R)
 # K_inf, P_inf = ihlqr(Ā, B̄, Q, R, Q, max_iters = 100000)
 
@@ -96,24 +97,34 @@ println(sort(abs.(eigvals(A_cl))))
 
 # Simulate on the nonlinear system
 let 
-    x_ref = quasi_shift_foot_lift()
+    x_ref = quasi_shift_foot_lift(5)
     u_ref = vcat(calc_continuous_eq(model, x_ref)...);
     data.x = copy(x_ref)
     set_data!(model, intf, data)
     global res, U
     res = []
     U = []
-    for k = 0:100000
+    for k = 0:25000
         Δx =  state_error(model, data.x, x_lin) # State error
-        u = u_lin[1:model.nu] - K_pd*x_lin - (K_pd[:, 2:end] + K_inf)*Δx
-        data.u = u#u_lin[1:model.nu] - K_pd*x_lin + K_pd*data.x - K_inf*Δx# + K_inf*state_error(model, x_ref, x_lin) # Calc control
-        set_data!(model, intf, data) # Int sim
-        @lock intf.p.lock begin # Simulate
-            MuJoCo.mj_step(intf.m, intf.d)
+        u_lqr = -K_inf*Δx
+
+       @lock intf.p.lock begin # Simulate
+            for k_inner = 1:4
+                Δx =  state_error(model, data.x, x_lin) # State error
+
+                u = u_lin[1:model.nu] - K_pd*x_lin - K_pd[:, 2:end]*Δx + u_lqr
+                data.u = u#u_lin[1:model.nu] - K_pd*x_lin + K_pd*data.x - K_inf*Δx# + K_inf*state_error(model, x_ref, x_lin) # Calc control
+                set_data!(model, intf, data) # Int sim
+                MuJoCo.mj_step(intf.m, intf.d)
+                get_data!(intf, data) # Get sim result
+
+                push!(res, copy(Δx))
+                push!(U, u)
+            end
         end
-        get_data!(intf, data) # Get sim result
 
         if norm(Δx[1:model.nq], Inf) > 1
+            println("out of range")
             break
         end
 
