@@ -1,6 +1,6 @@
 ### WARNING: quick and dirty global functions that operate on variables created in nadia_mujoco_stand.jl
 
-function quasi_shift_foot_lift()
+function quasi_shift_foot_lift(;shift_ang = 5)
     # Set up standing i.c. and solve for stabilizing control
     bend_ang = 40*pi/180
     x_lin = [0; 0; 0.88978022; 1; zeros(5); -bend_ang; 2*bend_ang; -bend_ang; zeros(3); -bend_ang; 2*bend_ang; -bend_ang; zeros(model.nx - 18)]
@@ -9,7 +9,7 @@ function quasi_shift_foot_lift()
     foot_center = [mean(foot_locs[1:3:end]), mean(foot_locs[2:3:end]), mean(foot_locs[3:3:end])]
 
     # Create shift and lift state
-    shift_ang = -5*pi/180 # 14 gets CoM in foot center
+    shift_ang = -shift_ang*pi/180 # 14 gets CoM in foot center
     x_shift = [0; 0; 0.88978022; 1; zeros(4); shift_ang; -bend_ang; 2*bend_ang; -bend_ang; - shift_ang; zeros(1);
                 shift_ang; -bend_ang; 2*bend_ang; -bend_ang; - shift_ang; zeros(3); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)]
     foot_locs = kinematics(model, x_shift)
