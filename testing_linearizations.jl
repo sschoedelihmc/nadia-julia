@@ -23,10 +23,10 @@ intf = init_mujoco_interface(model)
 data = init_data(model, intf, preferred_monitor=3);
 
 # Set up standing i.c. and solve for stabilizing control
-let
-    global K_pd, K_inf
+# let
+    # global K_pd, K_inf
 ang = 40*pi/180;
-K_pd = [zeros(model.nu, 7) diagm(1e1*ones(model.nu)) zeros(model.nu, 6) 1e0diagm(ones(model.nu))]
+K_pd = [zeros(model.nu, 7) diagm(0*ones(model.nu)) zeros(model.nu, 6) 1e1diagm(ones(model.nu))]
 x_lin = [0; 0; 0.88978022; 1; 0; 0; 0; zeros(2); -ang; 2*ang; -ang; zeros(3); -ang; 2*ang; -ang; zeros(4); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)];
 data.x = copy(x_lin);
 set_data!(model, intf, data);
@@ -37,19 +37,13 @@ E_jac = error_jacobian(model, x_lin);
 E_jac_T = error_jacobian_T(model, x_lin);
 A = E_jac_T*FiniteDiff.finite_difference_jacobian(_x -> continuous_dynamics(model, _x, u_lin[1:model.nu], u_lin[model.nu + 1:end], K=K_pd), x_lin)*E_jac;
 B = E_jac_T*FiniteDiff.finite_difference_jacobian(_u -> continuous_dynamics(model, x_lin, _u, u_lin[model.nu + 1:end], K=K_pd), u_lin[1:model.nu]);
-C = E_jac_T*FiniteDiff.finite_difference_jacobian(_u -> continuous_dynamics(model, x_lin, u_lin[1:model.nu], _u, K=K_pd), u_lin[model.nu + 1:end]);
 J = [kinematics_jacobian(model, x_lin)*E_jac; kinematics_velocity_jacobian(model, x_lin)*E_jac]
-
-# Redo J to not be rank deficient
-# P = zeros(12, 24); P[CartesianIndex.(1:12, [1, 2, 3, 4, 6, 9, 13, 14, 15, 16, 18, 21])] .= 1;
-# J = [kinematics_jacobian(model, x_lin)*E_jac; kinematics_velocity_jacobian(model, x_lin)*E_jac]
 
 # The dynamics system we are solving for (in x_{k+1} and λ_k)) is
 # (I - dt*A)x_{k+1} - J'λ_k = x_k + dt*Bu_k
 # s.t. Jx_{k+1} - 1/ρPλ_k = 0
 # x ∈ R^58, u ∈ R^23, λ ∈ R^48 and J is 48 × 58 but rank(J) = 24. By default P = I(48)
 dt = intf.m.opt.timestep
-dt = 0.002
 ρ = 1e5
 P = I(size(J, 1)) # Regularizes everything, adds in artificial DoFs
 # P = svd(J').V[:, 25:end]*svd(J').V[:, 25:end]' # Only regularizes things not in the constraint space
@@ -66,38 +60,44 @@ ranks = []; for len = 1:58
 end
 
 # Calculate ihlqr
-P_range = I - svd(J).V[:, 1:24]*svd(J).V[:, 1:24]'
-Q = diagm([1e4ones(model.nv); 1e0ones(model.nv)])
-Q = 0.5*(Q + Q')
-R = diagm(1e-2ones(model.nu));
+Q = inv(C)*diagm([1e3ones(model.nv); 5e0ones(model.nv)])*C
+R = diagm(1e-3ones(model.nu));
+P_inf = are(Discrete, Ā, B̄, Q, R)
 K_inf = lqr(Discrete, Ā, B̄, Q, R)
-# K_inf, P_inf = ihlqr(Ā, B̄, Q, R, Q, max_iters = 100000)
 
-# Simulate on the linear system
+# Check linear system eigenvalues
 A_cl = Ā - B̄*K_inf
 println(sort(abs.(eigvals(A_cl))))
-# let 
-#     x =  quasi_shift_foot_lift()
-#     global res, U
-#     res = []
-#     U = []
-#     Δx =  state_error(model, x, x_lin)
-#     for k = 0:1000
-#         # Δx = state_error(model, x, x_lin)
-#         push!(res, copy(Δx))
-#         push!(U, u_lin[1:model.nu]-K_inf*Δx)
-#         x = apply_Δx(model, x_lin, A_cl*Δx )
-#         Δx = A_cl*Δx
-#         data.x = copy(x)
-#         set_data!(model, intf, data)
-#         sleep(0.0001)
-#     end
-    
-# end
+
+# Do the same thing with a scaled version
+A_sc, B_sc, z2x = matlab_prescale(A, B)
+@assert norm(A_sc - inv(z2x)*A*z2x, Inf) < 1e-16
+@assert norm(B_sc - inv(z2x)*B, Inf) < 1e-16
+kkt_sys_sc = [I - dt*A_sc inv(C)*J'; J*C -1/ρ*P]
+cond(kkt_sys_sc)
+Ā_sc = (kkt_sys_sc \ [I(model.nx - 1); zeros(size(J, 1), model.nx - 1)])[1:model.nx - 1, :]
+B̄_sc = (kkt_sys_sc \ [dt*B_sc; zeros(size(J, 1), model.nu)])[1:model.nx - 1, :]
+@assert norm(Ā_sc - inv(z2x)*Ā*z2x, Inf) < 1e-12
+@assert norm(B̄_sc - inv(z2x)*B̄, Inf) < 1e-12
+
+# Calculate ihlqr
+Q_sc = z2x*diagm([1e3ones(model.nv); 5e0ones(model.nv)])*z2x
+R = diagm(1e-3ones(model.nu));
+P_sc_inf = are(Discrete, Ā_sc, B̄_sc, Q_sc, R)
+norm(P_sc_inf - z2x*P_inf*z2x, Inf)
+K_sc_inf = lqr(Discrete, Ā_sc, B̄_sc, Q_sc, R)
+norm(K_sc_inf - K_inf*z2x, Inf)
+@assert norm(K_sc_inf - K_inf*z2x, Inf) < 5e-6
+
+# Check linear system eigenvalues
+A_sc_cl = Ā_sc - B̄_sc*K_sc_inf
+println(sort(abs.(eigvals(A_sc_cl))))
+@assert norm(A_sc_cl - inv(z2x)*A_cl*z2x, Inf) < 1e-6
 
 # Simulate on the nonlinear system
+x2z = inv(z2x)
 let 
-    x_ref = quasi_shift_foot_lift(5)
+    x_ref = quasi_shift_foot_lift(shift_ang = 5)
     u_ref = vcat(calc_continuous_eq(model, x_ref)...);
     data.x = copy(x_ref)
     set_data!(model, intf, data)
@@ -106,10 +106,10 @@ let
     U = []
     for k = 0:25000
         Δx =  state_error(model, data.x, x_lin) # State error
-        u_lqr = -K_inf*Δx
+        u_lqr = -K_sc_inf*x2z*Δx
 
        @lock intf.p.lock begin # Simulate
-            for k_inner = 1:4
+            for k_inner = 1:1
                 Δx =  state_error(model, data.x, x_lin) # State error
 
                 u = u_lin[1:model.nu] - K_pd*x_lin - K_pd[:, 2:end]*Δx + u_lqr
@@ -124,7 +124,7 @@ let
         end
 
         if norm(Δx[1:model.nq], Inf) > 1
-            println("out of range")
+            println("too far from desired state")
             break
         end
 

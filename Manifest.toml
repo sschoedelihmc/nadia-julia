@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "c80d805e138373a11fbb65b5011b651d4d2e138e"
+project_hash = "e7d6471e9608b7c6758ea614109e774eebc90f08"
 
 [[deps.ASL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1367,6 +1367,12 @@ git-tree-sha1 = "1ce1834f9644a8f7c011eb0592b7fd6c42c90653"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
 version = "3.0.1"
 
+[[deps.MATLAB]]
+deps = ["Libdl", "SparseArrays"]
+git-tree-sha1 = "f640678d27790992e2a697f60e6afb1be3ebb7fc"
+uuid = "10e44e05-a98a-55b3-a45b-ba969058deb6"
+version = "0.8.4"
+
 [[deps.METIS_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "1fd0a97409e418b78c53fac671cf4622efdf0f21"
@@ -1945,7 +1951,7 @@ version = "2.11.0"
     Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 
 [[deps.QuadrupedControl]]
-deps = ["BangBang", "BenchmarkTools", "BlockDiagonals", "CUDA", "CoordinateTransformations", "Dates", "FFMPEG", "FiniteDiff", "ForwardDiff", "GLFW", "GPUArrays", "GeometryBasics", "Ipopt", "JLD2", "LinearAlgebra", "MKL", "MathOptInterface", "MechanismGeometries", "MeshCat", "MeshCatMechanisms", "Meshing", "MuJoCo", "OSQP", "Observables", "PinnZoo", "Plots", "PrettyTables", "Printf", "ProgressMeter", "ReLUQP", "Revise", "RigidBodyDynamics", "Rotations", "SparseArrays", "StaticArrays", "Statistics", "ZMQ", "cuDNN", "lazy_nlp_qd"]
+deps = ["BangBang", "BenchmarkTools", "BlockDiagonals", "CUDA", "CoordinateTransformations", "Dates", "FFMPEG", "FiniteDiff", "ForwardDiff", "GLFW", "GPUArrays", "GeometryBasics", "Ipopt", "JLD2", "LinearAlgebra", "MKL", "MathOptInterface", "MechanismGeometries", "MeshCat", "MeshCatMechanisms", "Meshing", "MuJoCo", "OSQP", "Observables", "PinnZoo", "Plots", "PrettyTables", "Printf", "ProgressMeter", "ReLUQP", "Requires", "Revise", "RigidBodyDynamics", "Rotations", "SparseArrays", "StaticArrays", "Statistics", "ZMQ", "cuDNN", "lazy_nlp_qd"]
 path = "submodules/QuadrupedControl.jl"
 uuid = "3e66f95d-f7dd-430e-860f-4c300c1230c4"
 version = "0.1.0"
