@@ -67,13 +67,13 @@ Q = spdiagm([
         # LEFT_KNEE_Y RIGHT_KNEE_Y
         50; 1;
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
-        0.4; 0.4; 0.1; 10;
+        0.4; 7.0; 0.1; 10;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
-        0.4; 0.4; 0.1; 0.7;
+        0.4; 7.0; 0.1; 0.7;
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
-        0.4; 0.4;
+        0.4; 7.0;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
-        1.2; 1.2;
+        1.2; 7.0;
 
         # Pelvis orientation & translation
         repeat([10], 6);
@@ -105,13 +105,13 @@ R = spdiagm([
         # LEFT_KNEE_Y RIGHT_KNEE_Y
         0.01; 0.01;
         # LEFT_SHOULDER_Y RIGHT_SHOULDER_Y LEFT_ANKLE_Y RIGHT_ANKLE_Y
-        0.5; 0.5; 10; 0.1;
+        0.5; 0.1; 10; 0.1;
         # LEFT_SHOULDER_X RIGHT_SHOULDER_X LEFT_ANKLE_X RIGHT_ANKLE_X
-        0.5; 0.5; 10; 0.5;
+        0.5; 0.1; 10; 0.5;
         # LEFT_SHOULDER_Z RIGHT_SHOULDER_Z
-        0.5; 0.5;
+        0.5; 0.1;
         # LEFT_ELBOW_Y RIGHT_ELBOW_Y
-        0.5; 0.5
+        0.5; 0.1
     ])
 
 Kinf, Qf = ihlqr(ADynReduced, BDynReduced, Q, R, Q; max_iters = 200000, verbose=true);
@@ -119,7 +119,7 @@ Kinf, Qf = ihlqr(ADynReduced, BDynReduced, Q, R, Q; max_iters = 200000, verbose=
 ##
 
 # Define additional constraints for the QP
-horizon = 2;
+horizon = 100;
 A_torque = kron(I(horizon), [I(nadia.nu) zeros(nadia.nu, nadia.nq-1+nadia.nv)]);
 l_torque = repeat(-nadia.torque_limits-u_ref, horizon);
 u_torque = repeat(nadia.torque_limits-u_ref, horizon);
@@ -141,7 +141,7 @@ N = Int(floor(end_time/simulation_time_step))
 X = [zeros(length(x_ref)) for _ = 1:N+1];
 U = [zeros(length(u_ref)) for _ = 1:N];
 X[1] = deepcopy(x_ref);
-X[1][nadia.nq + 5] = 0.05; # Perturb i.c.
+X[1][nadia.nq + 5] = 0.2; # Perturb i.c.
 
 # Warmstart solver
 Δx̃ = [qtorp(L(x_ref[1:4])'*X[1][1:4]); X[1][5:end] - x_ref[5:end]]
@@ -170,3 +170,23 @@ for k = 1:N
     global X[k + 1] = rk4(nadia, X[k], clamp.(u_ref + U[k], -nadia.torque_limits, nadia.torque_limits), simulation_time_step)
 end
 anim = animate(nadia, mvis, X; Δt=simulation_time_step, frames_to_skip=50);
+
+##
+
+function copyMatrix(mat)
+    mat_str = ""
+    for entry in mat
+        mat_str *= string(entry) * ", "
+    end
+    clipboard(mat_str[1:end-2]) # Remove last comma
+end
+
+copyMatrix(H)
+copyMatrix(g)
+copyMatrix(A)
+copyMatrix(l)
+copyMatrix(u)
+copyMatrix(g_x0)
+copyMatrix(lu_x0)
+
+# H, g, A, l, u, g_x0, lu_x0 = gen_condensed_mpc_qp(ADynReduced, BDynReduced, Q, R, Qf, horizon, A_torque, l_torque, u_torque, Kinf);
