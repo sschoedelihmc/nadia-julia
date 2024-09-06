@@ -45,29 +45,29 @@ struct NadiaFixed
         )
 
         torque_limits = [ # TODO: set these with values from SCS
-            360.0,  # LEFT_HIP_Z
-            740.0,  # RIGHT_HIP_Z
-            890.0,  # SPINE_Z
-            840.0,  # LEFT_HIP_X
-            530.0,  # RIGHT_HIP_X
-            275.0,  # SPINE_X
-            106.0,  # LEFT_HIP_Y
-            275.0,  # RIGHT_HIP_Y
-            445.0,  # SPINE_Y
-            530.0,  # LEFT_KNEE_Y
-            300.0,  # RIGHT_KNEE_Y
-            840.0,  # LEFT_SHOULDER_Y
-            87.0,   # RIGHT_SHOULDER_Y
-            87.0,   # LEFT_ANKLE_Y
-            890.0,  # RIGHT_ANKLE_Y
-            99.0,   # LEFT_SHOULDER_X
-            99.0,   # RIGHT_SHOULDER_X
-            740.0,  # LEFT_ANKLE_X
-            63.0,   # RIGHT_ANKLE_X
-            63.0,   # LEFT_SHOULDER_Z
-            360.0,  # RIGHT_SHOULDER_Z
-            112.0,  # LEFT_ELBOW_Y
-            112.0   # RIGHT_ELBOW_Y
+            1000.0, # LEFT_HIP_Z
+            1000.0, # RIGHT_HIP_Z
+            1000.0, # SPINE_Z
+            1000.0, # LEFT_HIP_X
+            1000.0, # RIGHT_HIP_X
+            1000.0, # SPINE_X
+            1000.0, # LEFT_HIP_Y
+            1000.0, # RIGHT_HIP_Y
+            1000.0, # SPINE_Y
+            1000.0, # LEFT_KNEE_Y
+            1000.0, # RIGHT_KNEE_Y
+            51.87,  # LEFT_SHOULDER_Y
+            41.50,  # RIGHT_SHOULDER_Y
+            1000.0, # LEFT_ANKLE_Y
+            1000.0, # RIGHT_ANKLE_Y
+            57.45,  # LEFT_SHOULDER_X
+            41.5,   # RIGHT_SHOULDER_X
+            1000.0, # LEFT_ANKLE_X
+            1000.0, # RIGHT_ANKLE_X
+            24.47,  # LEFT_SHOULDER_Z
+            22.59,  # RIGHT_SHOULDER_Z
+            24.47,  # LEFT_ELBOW_Y
+            22.59   # RIGHT_ELBOW_Y
         ]
 
         new(mech, MechanismState(mech), DynamicsResult(mech), StateCache(mech), DynamicsResultCache(mech),
