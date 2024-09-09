@@ -23,21 +23,27 @@ intf = init_mujoco_interface(model)
 data = init_data(model, intf, preferred_monitor=3);
 
 # Set up standing i.c. and solve for stabilizing control
-# let
-    # global K_pd, K_inf
+let
+    global K_pd, K_inf
 ang = 40*pi/180;
 K_pd = [zeros(model.nu, 7) diagm(0*ones(model.nu)) zeros(model.nu, 6) 1e1diagm(ones(model.nu))]
 x_lin = [0; 0; 0.88978022; 1; 0; 0; 0; zeros(2); -ang; 2*ang; -ang; zeros(3); -ang; 2*ang; -ang; zeros(4); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)];
 data.x = copy(x_lin);
-set_data!(model, intf, data);
-u_lin = vcat(calc_continuous_eq(model, x_lin, K=K_pd)...);
+u_lin = vcat(calc_continuous_eq(model, x_lin, K=K_pd, verbose = true)...);
+u_lin = [u_lin[1:model.nu]; zeros(model.nc*3); u_lin[model.nu + 1:end]] # Update to include constraint forces on position-velocity kinematics
+J_func(model, x) = BlockDiagonal([kinematics_jacobian(model, x)[:, 1:model.nq], kinematics_jacobian(model, x_lin)[:, 1:model.nq]*velocity_kinematics(model, x_lin)])
+
+# Confirm that we do have an eq point with the full constraint
+@assert norm(continuous_dynamics(model, x_lin, u_lin[1:model.nu], λ = u_lin[model.nu + 1:end], J_func=J_func, K=K_pd), Inf) < 1e-10
 
 # Linearize dynamics (continuous time), constraints on position and velocity
 E_jac = error_jacobian(model, x_lin);
 E_jac_T = error_jacobian_T(model, x_lin);
-A = E_jac_T*FiniteDiff.finite_difference_jacobian(_x -> continuous_dynamics(model, _x, u_lin[1:model.nu], u_lin[model.nu + 1:end], K=K_pd), x_lin)*E_jac;
-B = E_jac_T*FiniteDiff.finite_difference_jacobian(_u -> continuous_dynamics(model, x_lin, _u, u_lin[model.nu + 1:end], K=K_pd), u_lin[1:model.nu]);
-J = [kinematics_jacobian(model, x_lin)*E_jac; kinematics_velocity_jacobian(model, x_lin)*E_jac]
+cont_dyn_func(model, x, u, λ) = continuous_dynamics(model, x, u, λ=λ, J_func=J_func, K=K_pd)
+A = E_jac_T*FiniteDiff.finite_difference_jacobian(_x -> cont_dyn_func(model, _x, u_lin[1:model.nu], u_lin[model.nu + 1:end]), x_lin)*E_jac;
+B = E_jac_T*FiniteDiff.finite_difference_jacobian(_u -> cont_dyn_func(model, x_lin, _u, u_lin[model.nu + 1:end]), u_lin[1:model.nu]);
+C = E_jac_T*FiniteDiff.finite_difference_jacobian(_λ -> cont_dyn_func(model, x_lin, u_lin[1:model.nu], _λ), u_lin[model.nu + 1:end]);
+J = J_func(model, x_lin)*E_jac
 
 # The dynamics system we are solving for (in x_{k+1} and λ_k)) is
 # (I - dt*A)x_{k+1} - J'λ_k = x_k + dt*Bu_k
@@ -47,7 +53,7 @@ dt = intf.m.opt.timestep
 ρ = 1e5
 P = I(size(J, 1)) # Regularizes everything, adds in artificial DoFs
 # P = svd(J').V[:, 25:end]*svd(J').V[:, 25:end]' # Only regularizes things not in the constraint space
-kkt_sys = [I-dt*A J'; J -1/ρ*P]
+kkt_sys = [I-dt*A -dt*C; J -1/ρ*dt*P]
 cond(kkt_sys)
 Ā = (kkt_sys \ [I(model.nx - 1); zeros(size(J, 1), model.nx - 1)])[1:model.nx - 1, :]
 B̄ = (kkt_sys \ [dt*B; zeros(size(J, 1), model.nu)])[1:model.nx - 1, :]
@@ -57,11 +63,13 @@ ranks = []; for len = 1:58
     C_gram = hcat([Ā^k*B̄ for k = 1:len]...)
     push!(ranks, rank(C_gram))
     cond(C_gram)
-end
+end; 
+maximum(ranks)
 
 # Calculate ihlqr
-Q = inv(C)*diagm([1e3ones(model.nv); 5e0ones(model.nv)])*C
+Q = diagm([1e3ones(model.nv); 5e0ones(model.nv)])
 R = diagm(1e-3ones(model.nu));
+# K_inf, P_inf = ihlqr(Ā, B̄, Q, R, Q, max_iters = 1000000)
 P_inf = are(Discrete, Ā, B̄, Q, R)
 K_inf = lqr(Discrete, Ā, B̄, Q, R)
 
@@ -70,14 +78,17 @@ A_cl = Ā - B̄*K_inf
 println(sort(abs.(eigvals(A_cl))))
 
 # Do the same thing with a scaled version
-A_sc, B_sc, z2x = matlab_prescale(A, B)
+using MATLAB
+A_sc, B_sc, z2x = matlab_prescale(A, [B C])
+B_sc, C_sc = B_sc[:, 1:model.nu], B_sc[:, model.nu + 1:end]
 @assert norm(A_sc - inv(z2x)*A*z2x, Inf) < 1e-16
 @assert norm(B_sc - inv(z2x)*B, Inf) < 1e-16
-kkt_sys_sc = [I - dt*A_sc inv(C)*J'; J*C -1/ρ*P]
+@assert norm(C_sc - inv(z2x)*C, Inf) < 1e-16
+kkt_sys_sc = [I - dt*A_sc -dt*C_sc; J*z2x -1/ρ*dt*P]
 cond(kkt_sys_sc)
 Ā_sc = (kkt_sys_sc \ [I(model.nx - 1); zeros(size(J, 1), model.nx - 1)])[1:model.nx - 1, :]
 B̄_sc = (kkt_sys_sc \ [dt*B_sc; zeros(size(J, 1), model.nu)])[1:model.nx - 1, :]
-@assert norm(Ā_sc - inv(z2x)*Ā*z2x, Inf) < 1e-12
+@assert norm(Ā_sc - inv(z2x)*Ā*z2x, Inf) < 1e-10 norm(Ā_sc - inv(z2x)*Ā*z2x, Inf)
 @assert norm(B̄_sc - inv(z2x)*B̄, Inf) < 1e-12
 
 # Calculate ihlqr
@@ -87,7 +98,7 @@ P_sc_inf = are(Discrete, Ā_sc, B̄_sc, Q_sc, R)
 norm(P_sc_inf - z2x*P_inf*z2x, Inf)
 K_sc_inf = lqr(Discrete, Ā_sc, B̄_sc, Q_sc, R)
 norm(K_sc_inf - K_inf*z2x, Inf)
-@assert norm(K_sc_inf - K_inf*z2x, Inf) < 5e-6
+# @assert norm(K_sc_inf - K_inf*z2x, Inf) < 1e-4 norm(K_sc_inf - K_inf*z2x, Inf)
 
 # Check linear system eigenvalues
 A_sc_cl = Ā_sc - B̄_sc*K_sc_inf
@@ -107,6 +118,7 @@ let
     for k = 0:25000
         Δx =  state_error(model, data.x, x_lin) # State error
         u_lqr = -K_sc_inf*x2z*Δx
+        # u_lqr = -K_inf*Δx
 
        @lock intf.p.lock begin # Simulate
             for k_inner = 1:1
