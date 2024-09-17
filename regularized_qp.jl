@@ -35,7 +35,7 @@ x_lin = [0; 0; 0.892; 1; 0; 0; 0; zeros(2); -ang; 2*ang; -ang; zeros(3); -ang; 2
 data.x = copy(x_lin);
 u_lin = vcat(calc_continuous_eq(model, x_lin, K=K_pd, verbose = true)...);
 u_lin = [u_lin[1:model.nu]; zeros(model.nc*3); u_lin[model.nu + 1:end]] # Update to include constraint forces on position-velocity kinematics
-J_func(model, x) = BlockDiagonal([kinematics_jacobian(model, x)[:, 1:model.nq], kinematics_jacobian(model, x_lin)[:, 1:model.nq]*velocity_kinematics(model, x_lin)])
+J_func(model, x) = BlockDiagonal([kinematics_jacobian(model, x)[:, 1:model.nq], kinematics_jacobian(model, x)[:, 1:model.nq]*velocity_kinematics(model, x)])
 
 # Confirm that we do have an eq point with the full constraint
 @assert norm(continuous_dynamics(model, x_lin, u_lin[1:model.nu], λ = u_lin[model.nu + 1:end], J_func=J_func, K=K_pd), Inf) < 1e-10
@@ -89,7 +89,7 @@ K = QuadrupedControl.calc_K(mpc)
 # Simulate on the nonlinear system
 intf.sim_rate = intf.m.opt.timestep*4
 let 
-    x_ref, u_ref = quasi_shift_foot_lift(shift_ang = 5)
+    x_ref, u_ref = quasi_shift_foot_lift(J_func, shift_ang = 5)
     mpc.ref = LinearizedQuadRef(model, [x_ref], [u_ref], x_lin, u_lin, dt, nc = model.nc)
     data.x = copy(x_ref)
     set_data!(model, intf, data)
