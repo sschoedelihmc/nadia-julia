@@ -3,14 +3,14 @@
 function quasi_shift_foot_lift(;shift_ang = 5)
     # Set up standing i.c. and solve for stabilizing control
     bend_ang = 40*pi/180
-    x_lin = [0; 0; 0.88978022; 1; zeros(5); -bend_ang; 2*bend_ang; -bend_ang; zeros(3); -bend_ang; 2*bend_ang; -bend_ang; zeros(model.nx - 18)]
+    x_lin = [0; 0; 0.892; 1; zeros(5); -bend_ang; 2*bend_ang; -bend_ang; zeros(3); -bend_ang; 2*bend_ang; -bend_ang; zeros(model.nx - 18)]
     u_lin = vcat(calc_continuous_eq(model, x_lin)...)
     foot_locs = kinematics(model, x_lin)
     foot_center = [mean(foot_locs[1:3:end]), mean(foot_locs[2:3:end]), mean(foot_locs[3:3:end])]
 
     # Create shift and lift state
     shift_ang = -shift_ang*pi/180 # 14 gets CoM in foot center
-    x_shift = [0; 0; 0.88978022; 1; zeros(4); shift_ang; -bend_ang; 2*bend_ang; -bend_ang; - shift_ang; zeros(1);
+    x_shift = [0; 0; 0.892; 1; zeros(4); shift_ang; -bend_ang; 2*bend_ang; -bend_ang; - shift_ang; zeros(1);
                 shift_ang; -bend_ang; 2*bend_ang; -bend_ang; - shift_ang; zeros(3); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)]
     foot_locs = kinematics(model, x_shift)
     x_shift[1:3] = x_shift[1:3] + (foot_center - [mean(foot_locs[1:3:end]), mean(foot_locs[2:3:end]), mean(foot_locs[3:3:end])])
@@ -47,7 +47,11 @@ function quasi_shift_foot_lift(;shift_ang = 5)
     #     end
     # end
     # ref = LinearizedQuadRef(model, X_ref, [u_lin for _ = 1:length(X_ref)], x_lin, u_lin, dt, nc = model.nc, CMode_ref = CMode_ref, periodic=true)
-    return x_shift
+
+    u_shift = vcat(calc_continuous_eq(model, x_shift, K=K_pd, verbose = true)...);
+    u_shift = [u_shift[1:model.nu]; zeros(model.nc*3); u_shift[model.nu + 1:end]]
+
+    return x_shift, u_shift
 end
 
 # function quasi_shift_foot_lift()
