@@ -87,15 +87,26 @@ mpc = LinMPC(model, x_lin, u_lin, [I dt*B dt*C (dt*A - I)], Q, R, Qf, N, constra
 K = QuadrupedControl.calc_K(mpc)
 
 # Simulate on the nonlinear system
-intf.sim_rate = intf.m.opt.timestep*4
-X, U = quasi_shift_foot_lift(shift_ang = 5, tf = 10, K=K_pd);
+intf.sim_rate = intf.m.opt.timestep
+X, U = quasi_shift_foot_lift(shift_ang = 8, tf = 10, K=K_pd);
+
+function cFunc(model, intf, data, ctrl)
+    global forces
+    if data.t < intf.m.opt.timestep
+        forces = []
+    end
+    res = [zeros(6) for _ = 1:8]
+    [MuJoCo.mj_contactForce(intf.m, intf.d, i - 1, res[i]) for i = 1:8]
+    push!(forces, res)
+end
+
 QuadrupedControl.res = []; let 
     mpc.ref = LinearizedQuadRef(model, X, U, x_lin, u_lin, dt, nc = model.nc, periodic = false)
     data.x = copy(X[1])
     data.u = zeros(model.nu)
     set_data!(model, intf, data)
     global input, output
-    input, output = run_for_duration(model, intf, data, mpc, 30.0, record = true, record_rate = 100)
+    input, output = run_for_duration(model, intf, data, mpc, 15.0, record = true, record_rate = 100, custom_func=cFunc)
 end;
 
 # Plotting
@@ -104,5 +115,9 @@ nl_constraint_err = [[kinematics(model, x) - kinematics(model, x_lin); kinematic
 plot(output.t, [norm(r[1:model.nq]) for r in tracking_error])
 p2 = plot(hcat([r[1:24] for r in nl_constraint_err[1:250]]...)', labels="")
 
-close(intf);
+# close(intf);
 # end
+
+# Some contact force stuff from MuJoCo
+plot(hcat([[f[5][1]; f[6][1]; f[7][1]; f[8][1]] for f in forces[1:19999]]...)', labels="")
+plot(hcat([[f[5][2:3]; f[6][2:3]; f[7][2:3]; f[8][2:3]] for f in forces[1:19999]]...)', labels="")
