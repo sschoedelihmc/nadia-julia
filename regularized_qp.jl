@@ -29,10 +29,10 @@ data = init_data(model, intf, preferred_monitor=3);
 ## Set up standing i.c. and solve for stabilizing control
 # let
     global K_pd, K_qp, mpc
-K_pd = [zeros(model.nu, 7) diagm(0*ones(model.nu)) zeros(model.nu, 6) 1e1diagm(ones(model.nu))]
+K_pd = [zeros(model.nu, 7) diagm(1e1*ones(model.nu)) zeros(model.nu, 6) 1e0diagm(ones(model.nu))]
 ang = 40*pi/180;
 x_lin = [0; 0; 0.892; 1; 0; 0; 0; zeros(2); -ang; 2*ang; -ang; zeros(3); -ang; 2*ang; -ang; zeros(4); repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)];
-data.x = copy(x_lin);
+data.x = copy(x_lin); set_data!(model, intf, data);
 u_lin = vcat(calc_continuous_eq(model, x_lin, K=K_pd, verbose = true)...);
 u_lin = [u_lin[1:model.nu]; zeros(model.nc*3); u_lin[model.nu + 1:end]] # Update to include constraint forces on position-velocity kinematics
 J_func(model, x) = BlockDiagonal([kinematics_jacobian(model, x)[:, 1:model.nq], kinematics_jacobian(model, x)[:, 1:model.nq]*velocity_kinematics(model, x)])
@@ -83,51 +83,26 @@ constraints = Vector{NamedTuple}([
         # (C=[zeros(nc/3, model.nx - 1 + model.nu) kron(I(nc/3), [0 0 1]) zeros(nc/3, model.nx - 1 + model.nu)], # Force constraint on z
         #  l = -u_lin[model.nu + 1:3:end], )])
 
-mpc = LinMPC(model, x_lin, u_lin, [I dt*B dt*C (dt*A - I)], Q, R, Qf, N, constraints, dt=dt);
+mpc = LinMPC(model, x_lin, u_lin, [I dt*B dt*C (dt*A - I)], Q, R, Qf, N, constraints, dt=dt, K_pd=K_pd);
 K = QuadrupedControl.calc_K(mpc)
 
 # Simulate on the nonlinear system
 intf.sim_rate = intf.m.opt.timestep*4
-let 
-    x_ref, u_ref = quasi_shift_foot_lift(J_func, shift_ang = 5)
-    mpc.ref = LinearizedQuadRef(model, [x_ref], [u_ref], x_lin, u_lin, dt, nc = model.nc)
-    data.x = copy(x_ref)
+X, U = quasi_shift_foot_lift(shift_ang = 5, tf = 10, K=K_pd);
+QuadrupedControl.res = []; let 
+    mpc.ref = LinearizedQuadRef(model, X, U, x_lin, u_lin, dt, nc = model.nc, periodic = false)
+    data.x = copy(X[1])
+    data.u = zeros(model.nu)
     set_data!(model, intf, data)
     global input, output
-    input, output = run_for_duration(model, intf, data, mpc, 5.0, record = true, record_rate = 100)
-    # global res, U
-    # res = []
-    # U = []
-    # @showprogress for k = 0:10000
-    #     x_d, u_ffwd, Kp, Kd, status = get_ctrl(model, mpc, data)
-    #     Δx = state_error(model, data.x, x_d)
-    #     data.u = u_ffwd - K_pd[:, 2:end]*Δx
-    #     # data.u = u_lin[1:model.nu] - K_pd*x_lin - K_pd[:, 2:end]*Δx - K_inf*Δx
-    #     set_data!(model, intf, data) # Int sim
-    #     # @lock intf.p.lock begin
-    #     MuJoCo.mj_step(intf.m, intf.d)
-    #     # end
-    #     get_data!(intf, data) # Get sim result
-
-    #     # Δx = state_error(model, data.x, x_d)
-    #     push!(res, copy(Δx))
-    #     push!(U, u_ffwd + K_inf*Δx)
-    #     if norm(Δx[1:model.nq], Inf) > 1
-    #         println("too far from desired state")
-    #         break
-    #     elseif any(isnan.(data.x))
-    #         println("NAN in state")
-    #         break
-    #     end
-    # end
-    # plot(intf.m.opt.timestep.*(1:length(res)), [norm(r[1:model.nv]) for r in res])
+    input, output = run_for_duration(model, intf, data, mpc, 30.0, record = true, record_rate = 100)
 end;
 
 # Plotting
 tracking_error = [state_error(model, x, x_d) for (x, x_d) in zip(output.X, input.X)];
 nl_constraint_err = [[kinematics(model, x) - kinematics(model, x_lin); kinematics_velocity(model, x)] for x in output.X];
 plot(output.t, [norm(r[1:model.nq]) for r in tracking_error])
-plot(output.t, hcat([r[1:24] for r in nl_constraint_err]...)', labels="")
+p2 = plot(hcat([r[1:24] for r in nl_constraint_err[1:250]]...)', labels="")
 
 close(intf);
 # end

@@ -2,11 +2,12 @@ using Printf
 using BlockDiagonals
 ### WARNING: quick and dirty global functions that operate on variables created in nadia_mujoco_stand.jl
 
-function quasi_shift_foot_lift(;shift_ang = 5, dt = 0.01, tf = 3)
+function quasi_shift_foot_lift(;shift_ang = 5, dt = 0.01, tf = 3, K = zeros(model.nu, model.nx))
     # Set up standing i.c. and solve for stabilizing control
     bend_ang = 40*pi/180
-    x_lin = [0; 0; 0.892; 1; zeros(5); -bend_ang; 2*bend_ang; -bend_ang; zeros(3); -bend_ang; 2*bend_ang; -bend_ang; zeros(model.nx - 18)]
-    u_lin = vcat(calc_continuous_eq(model, x_lin)...)
+    x_lin = [0; 0; 0.892; 1; zeros(5); -bend_ang; 2*bend_ang; -bend_ang; zeros(3); -bend_ang; 2*bend_ang; -bend_ang; zeros(4); 
+            repeat([0; 0; 0; -pi/4], 2); zeros(model.nv)]
+    u_lin = vcat(calc_continuous_eq(model, x_lin, K=K)...)
     u_lin = [u_lin[1:model.nu]; zeros(model.nc*3); u_lin[model.nu + 1:end]] 
     foot_locs = kinematics(model, x_lin)
     foot_center = [mean(foot_locs[1:3:end]), mean(foot_locs[2:3:end]), mean(foot_locs[3:3:end])]
@@ -41,7 +42,7 @@ function quasi_shift_foot_lift(;shift_ang = 5, dt = 0.01, tf = 3)
         Δx_d = state_error(model, x_next, xk)
 
         residual(u) = 
-            Δx_d - dt*error_jacobian_T(model, xk)*continuous_dynamics(model, xk, u[1:model.nu], J_func=J_func, λ = u[model.nu + 1:end])
+            Δx_d - dt*error_jacobian_T(model, xk)*continuous_dynamics(model, xk, u[1:model.nu], J_func=J_func, λ = u[model.nu + 1:end], K=K)
 
         # Perform a Newton step (this residual is linear in the control so this is the best you can do)
         dr_du = FiniteDiff.finite_difference_jacobian(residual, U[k - 1])
@@ -55,7 +56,7 @@ function quasi_shift_foot_lift(;shift_ang = 5, dt = 0.01, tf = 3)
 
 
     return X, U
-end; X, U = quasi_shift_foot_lift();
+end
 
 # function quasi_shift_foot_lift()
 #     # Set up standing i.c. and solve for stabilizing control
