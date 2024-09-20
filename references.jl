@@ -23,7 +23,8 @@ function quasi_shift_foot_lift(;shift_ang = 5, dt = 0.01, tf = 3, K = zeros(mode
     u_shift = [u_shift[1:model.nu]; zeros(model.nc*3); u_shift[model.nu + 1:end]]
 
     # Create a reference from x_lin to x_shift
-    X = [x_lin, x_lin, [(tf - t)/tf*x_lin + t/tf*x_shift for t in LinRange(0, tf, Int(tf/dt + 1))]..., x_shift]
+    profile(t) = cos(t*pi + pi)/2 + 1/2
+    X = [[x_lin for _ = 1:10]..., [(1 - t)*x_lin + t*x_shift for t in profile.(LinRange(0, 1, Int(tf/dt + 1)))]..., x_shift]
     X = solve_ref_velocity_first_order(model, X, dt)
 
     # Check against jacobians
