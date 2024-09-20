@@ -55,7 +55,7 @@ J = J_func(model, x_lin)*E_jac
 # x ∈ R^58, u ∈ R^23, λ ∈ R^48 and J is 48 × 58 but rank(J) = 24. By default P = I(48)
 
 # Parameters (horizon, timestep, penalty, sizing)
-N = 10;
+N = 3;
 dt = 0.01;
 ρ = 1e5;
 
@@ -79,7 +79,7 @@ Qf = P_inf
 
 nc = size(J, 1)
 constraints = Vector{NamedTuple}([
-        (C=[zeros(nc, model.nx - 1 + model.nu) -1/ρ*dt*I J], l = zeros(nc), u = zeros(nc))#, # Contact constraint (position and velocity)
+        (C=[zeros(nc, model.nx - 1 + model.nu) -1/ρ*dt*I J], l = zeros(nc), u = zeros(nc)), # Contact constraint (position and velocity)
         (C=[zeros(model.nc, model.nx - 1 + model.nu + model.nc*3) kron(I(model.nc), [0 0 1]) zeros(model.nc, model.nx - 1)], # Force constraint on z for the velocity level constraint
          l = -u_lin[model.nu + model.nc*3 + 1:end][3:3:end], u = fill(Inf, model.nc))])
 
@@ -88,7 +88,7 @@ K, P = QuadrupedControl.calc_K(mpc)
 
 # Simulate on the nonlinear system
 intf.sim_rate = intf.m.opt.timestep
-X_ref, U_ref = quasi_shift_foot_lift(shift_ang = 8, tf = 5, K=K_pd);
+X_ref, U_ref = quasi_shift_foot_lift(shift_ang = 10, tf = 2, K=K_pd);
 
 function cFunc(model, intf, data, ctrl)
     global forces
@@ -109,7 +109,6 @@ QuadrupedControl.res = []; let
     data.u = zeros(model.nu)
     set_data!(model, intf, data)
     reset_ctrl!(model, mpc, data)
-    warmstart!(model, mpc, data)
     global input, output
     input, output = run_for_duration(model, intf, data, mpc, 10, record = true, record_rate = 100, custom_func=cFunc)
 end;
