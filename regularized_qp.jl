@@ -87,7 +87,7 @@ mpc = LinMPC(model, x_lin, u_lin, [I dt*B dt*C (dt*A - I)], Q, R, Qf, N, constra
 K, P = QuadrupedControl.calc_K(mpc)
 
 # Simulate on the nonlinear system
-intf.sim_rate = intf.m.opt.timestep
+intf.sim_rate = intf.m.opt.timestep*4
 X_ref, U_ref = quasi_shift_foot_lift(shift_ang = 10, tf = 2, K=K_pd);
 
 function cFunc(model, intf, data, ctrl)
@@ -110,7 +110,7 @@ QuadrupedControl.res = []; let
     set_data!(model, intf, data)
     reset_ctrl!(model, mpc, data)
     global input, output
-    input, output = run_for_duration(model, intf, data, mpc, 10, record = true, record_rate = 100, custom_func=cFunc)
+    input, output = run_for_duration(model, intf, data, mpc, 5, record = true, record_rate = 100, custom_func=cFunc)
 end;
 
 # Plotting
