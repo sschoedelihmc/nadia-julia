@@ -77,18 +77,60 @@ Q = diagm([1e3ones(model.nv); 5e0ones(model.nv)]);
 R = diagm([1e-3ones(model.nu); 0*ones(model.nc*3*2)]);
 Qf = P_inf
 
+function update_contact_constraint(c, model, ctrl, X_ref, U_ref, mode_ref)
+    for k = 1:ctrl.N
+        l = @view ctrl.qp.l[c.idx_c[k]]
+        u = @view ctrl.qp.u[c.idx_c[k]]
+
+        for (contact_idx, mode) in enumerate(mode_ref[k])
+            pos_idx = (contact_idx - 1)*3 .+ (1:3)
+            vel_idx = pos_idx .+ model.nc*3
+            if mode # In contact (all positions and velocities = 0)
+                l[pos_idx] .= 0
+                u[pos_idx] .= 0
+                l[vel_idx] .= 0
+                u[vel_idx] .= 0
+            else # Not in contact (only constraint is z_pos >= 0)
+                l[pos_idx] .= [-Inf; -Inf; 0.0]
+                u[pos_idx] .= fill(-Inf, 3)
+                l[vel_idx] .= fill(-Inf, 3)
+                u[vel_idx] .= fill(Inf, 3)
+            end
+        end
+    end
+end
+
+function update_force_constraint(c, model, ctrl, X_ref, U_ref, mode_ref) # Currently only z force for velocity
+    for k = 1:ctrl.N
+        l = @view ctrl.qp.l[c.idx_c[k]]
+        u = @view ctrl.qp.u[c.idx_c[k]]
+
+        for (contact_idx, mode) in enumerate(mode_ref[k])
+            if mode # In contact, z force should be greater than reference
+                l[contact_idx] = -ctrl.u_lin[model.nu + model.nc*3 + (contact_idx - 1)*3 + 3]
+                u[contact_idx] = Inf
+            else # Not in contact, z force should be zero
+                l[contact_idx] = -ctrl.u_lin[model.nu + model.nc*3 + (contact_idx - 1)*3 + 3]
+                u[contact_idx] = -ctrl.u_lin[model.nu + model.nc*3 + (contact_idx - 1)*3 + 3]
+            end
+        end
+    end
+end
+
+
 nc = size(J, 1)
 constraints = Vector{NamedTuple}([
-        (C=[zeros(nc, model.nx - 1 + model.nu) -1/ρ*dt*I J], l = zeros(nc), u = zeros(nc)), # Contact constraint (position and velocity)
+        (C=[zeros(nc, model.nx - 1 + model.nu) -1/ρ*dt*I J], l = zeros(nc), u = zeros(nc), update_func = update_contact_constraint), # Contact constraint (position and velocity)
         (C=[zeros(model.nc, model.nx - 1 + model.nu + model.nc*3) kron(I(model.nc), [0 0 1]) zeros(model.nc, model.nx - 1)], # Force constraint on z for the velocity level constraint
-         l = -u_lin[model.nu + model.nc*3 + 1:end][3:3:end], u = fill(Inf, model.nc))])
+         l = -u_lin[model.nu + model.nc*3 + 1:end][3:3:end], u = fill(Inf, model.nc), update_func = update_force_constraint)])
 
 mpc = LinMPC(model, x_lin, u_lin, [I dt*B dt*C (dt*A - I)], Q, R, Qf, N, constraints, dt=dt, K_pd=K_pd);
 K, P = QuadrupedControl.calc_K(mpc)
 
 # Simulate on the nonlinear system
 intf.sim_rate = intf.m.opt.timestep*4
-X_ref, U_ref = quasi_shift_foot_lift(shift_ang = 10, tf = 2, K=K_pd);
+X_ref, U_ref = quasi_shift_foot_lift(shift_ang = 10, tf = 2, K=K_pd, dt=dt);
+mpc.ref = LinearizedQuadRef(model, X_ref, U_ref, x_lin, u_lin, dt, nc = model.nc, periodic = false)
 
 function cFunc(model, intf, data, ctrl)
     global forces
@@ -103,7 +145,6 @@ function cFunc(model, intf, data, ctrl)
 end
 
 QuadrupedControl.res = []; let 
-    mpc.ref = LinearizedQuadRef(model, X_ref, U_ref, x_lin, u_lin, dt, nc = model.nc, periodic = false)
     reset_data!(model, intf, data)
     data.x = copy(X_ref[1])
     data.u = zeros(model.nu)
@@ -121,6 +162,9 @@ plot(hcat([r[1:24] for r in nl_constraint_err]...)', labels="")
 
 # close(intf);
 # end
+cost_test = kron(I(4), [I(9) zeros(9, 3)] + [zeros(9, 3) -I])
+
+kron(I(4), kron([1 -1], I(3)))
 
 # Some contact force stuff from MuJoCo
 plot(hcat([[f[5][1]; f[6][1]; f[7][1]; f[8][1]] for f in forces[1:19999]]...)', labels="")
