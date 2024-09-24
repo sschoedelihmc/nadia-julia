@@ -55,7 +55,7 @@ J = J_func(model, x_lin)*E_jac
 # x ∈ R^58, u ∈ R^23, λ ∈ R^48 and J is 48 × 58 but rank(J) = 24. By default P = I(48)
 
 # Parameters (horizon, timestep, penalty, sizing)
-N = 3;
+N = 20;
 dt = 0.01;
 ρ = 1e5;
 
@@ -92,7 +92,7 @@ function update_contact_constraint(c, model, ctrl, X_ref, U_ref, mode_ref)
                 u[vel_idx] .= 0
             else # Not in contact (only constraint is z_pos >= 0)
                 l[pos_idx] .= [-Inf; -Inf; 0.0]
-                u[pos_idx] .= fill(-Inf, 3)
+                u[pos_idx] .= fill(Inf, 3)
                 l[vel_idx] .= fill(-Inf, 3)
                 u[vel_idx] .= fill(Inf, 3)
             end
@@ -129,8 +129,9 @@ K, P = QuadrupedControl.calc_K(mpc)
 
 # Simulate on the nonlinear system
 intf.sim_rate = intf.m.opt.timestep*4
-X_ref, U_ref = quasi_shift_foot_lift(shift_ang = 10, tf = 2, K=K_pd, dt=dt);
-mpc.ref = LinearizedQuadRef(model, X_ref, U_ref, x_lin, u_lin, dt, nc = model.nc, periodic = false)
+# X_ref, U_ref = quasi_shift_foot_lift(shift_ang = 10, tf = 2, K=K_pd, dt=dt);
+X_ref, U_ref, CMode_ref = shifted_one_foot_lift(; shift_ang = 5, lift_ang = 3, dt = dt, tf = 0.2, K=K_pd);
+mpc.ref = LinearizedQuadRef(model, X_ref, U_ref, x_lin, u_lin, dt, nc = model.nc, periodic = false, CMode_ref = CMode_ref)
 
 function cFunc(model, intf, data, ctrl)
     global forces
@@ -151,7 +152,7 @@ QuadrupedControl.res = []; let
     set_data!(model, intf, data)
     reset_ctrl!(model, mpc, data)
     global input, output
-    input, output = run_for_duration(model, intf, data, mpc, 5, record = true, record_rate = 100, custom_func=cFunc)
+    input, output = run_for_duration(model, intf, data, mpc, 2, record = true, record_rate = 100, custom_func=cFunc)
 end;
 
 # Plotting
