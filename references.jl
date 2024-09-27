@@ -22,14 +22,19 @@ function shifted_one_foot_lift(;shift_ang = 10, lift_ang = 1, dt = 0.01, tf = 0.
     u_shift = vcat(calc_continuous_eq(model, x_shift, K=K_pd, verbose = true)...);
     u_shift = [u_shift[1:model.nu]; zeros(model.nc*3); u_shift[model.nu + 1:end]]
 
-    # Create lift state
+    # Create lift state (left)
     lift_ang = bend_ang + lift_ang*pi/180
-    x_lift = copy(x_shift);
-    x_lift[16:18] .= [-lift_ang; 2*lift_ang; -lift_ang]
+    x_lift_left = copy(x_shift);
+    x_lift_left[16:18] .= [-lift_ang; 2*lift_ang; -lift_ang]
+
+    # Create lift state (right)
+    x_lift_right = copy(x_shift);
+    x_lift_right[10:12] .= [-lift_ang; 2*lift_ang; -lift_ang]
 
     # Create a reference from shift -> lift -> shift
     profile(t) = (-cos(t*2*pi) + 1)/2
-    X = [[x_shift for _ = 1:50]..., [(1 - t)*x_shift + t*x_lift for t in profile.(LinRange(0, 1, Int(tf/dt + 1)))]..., [x_shift for _ in 1:10]...]
+    X = [[x_shift for _ = 1:50]..., [(1 - t)*x_shift + t*x_lift_left for t in profile.(LinRange(0, 1, Int(tf/dt + 1)))]..., [x_shift for _ in 1:10]...,
+         [(1 - t)*x_shift + t*x_lift_right for t in profile.(LinRange(0, 1, Int(tf/dt + 1)))]..., [x_shift for _ in 1:10]...]
     X = solve_ref_velocity_first_order(model, X, dt)
 
     # Contact modes
@@ -44,6 +49,7 @@ function shifted_one_foot_lift(;shift_ang = 10, lift_ang = 1, dt = 0.01, tf = 0.
     B = B_func(model)
     J_func_both(model, x) = BlockDiagonal([kinematics_jacobian(model, x)[:, 1:model.nq], kinematics_jacobian(model, x)[:, 1:model.nq]*velocity_kinematics(model, x)])
     J_func_left(model, x) = BlockDiagonal([kinematics_jacobian(model, x)[1:12, 1:model.nq], kinematics_jacobian(model, x)[1:12, 1:model.nq]*velocity_kinematics(model, x)])
+    J_func_right(model, x) = BlockDiagonal([kinematics_jacobian(model, x)[13:end, 1:model.nq], kinematics_jacobian(model, x)[13:end, 1:model.nq]*velocity_kinematics(model, x)])
     U[1] = copy(u_shift)
     max_err = 0
     for k = 2:length(X) - 1
@@ -51,25 +57,27 @@ function shifted_one_foot_lift(;shift_ang = 10, lift_ang = 1, dt = 0.01, tf = 0.
         x_next = X[k + 1]
         Δx_d = state_error(model, x_next, xk)
 
-        nλ, J_func = 48, J_func_both
-        if sum(CMode[k]) <= 4 # No forces on right foot (last 4 contacts)
-            nλ = 24
+        λ_inds, J_func = model.nu .+ (1:48), J_func_both
+        if CMode[k][1] == 1 && CMode[k][5] == 0 # No forces on right foot
+            λ_inds = model.nu .+ [1:12; 25:36]
             J_func = J_func_left
+        elseif CMode[k][1] == 0 && CMode[k][5] == 1 # No forces on left foot
+            λ_inds = model.nu .+ [13:24; 37:48]
+            J_func = J_func_right
         end
 
         residual(u) = 
             Δx_d - dt*error_jacobian_T(model, xk)*continuous_dynamics(model, xk, u[1:model.nu], J_func=J_func, λ = u[model.nu + 1:end], K=K)
 
         # Perform a Newton step on the least squares problen (this residual is linear in the control so this is the best you can do)
-        u_guess = U[k - 1][1:model.nu + nλ]
+        u_guess = [U[k-1][1:model.nu]; U[k-1][λ_inds]]
         dr_du = FiniteDiff.finite_difference_jacobian(residual, u_guess)
 
         A = (dr_du*dr_du' + 1e-11*I) # This is always singular since J_func gives a redundant jacobian
         u_guess = u_guess - dr_du' * (A \ residual(u_guess))
 
-        U[k] = copy(U[k - 1])
-        U[k][1:model.nu + nλ] = u_guess[1:model.nu + nλ]
-        U[k][model.nu + nλ + 1:end] .= 0
+        U[k][1:model.nu] = u_guess[1:model.nu]
+        U[k][λ_inds] = u_guess[model.nu + 1:end]
         max_err = max(max_err, norm(residual(u_guess), Inf))
     end
 
