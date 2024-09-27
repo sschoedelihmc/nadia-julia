@@ -33,8 +33,7 @@ function shifted_one_foot_lift(;shift_ang = 10, lift_ang = 1, dt = 0.01, tf = 0.
 
     # Create a reference from shift -> lift -> shift
     profile(t) = (-cos(t*2*pi) + 1)/2
-    X = [[x_shift for _ = 1:50]..., [(1 - t)*x_shift + t*x_lift_left for t in profile.(LinRange(0, 1, Int(tf/dt + 1)))]..., [x_shift for _ in 1:10]...,
-         [(1 - t)*x_shift + t*x_lift_right for t in profile.(LinRange(0, 1, Int(tf/dt + 1)))]..., [x_shift for _ in 1:10]...]
+    X = [[x_shift for _ = 1:Int(0.2/dt)]..., [(1 - t)*x_shift + t*x_lift_left for t in profile.(LinRange(0, 1, Int(tf/dt + 1)))]..., [x_shift for _ in 1:Int(1.0/dt)]...]
     X = solve_ref_velocity_first_order(model, X, dt)
 
     # Contact modes

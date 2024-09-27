@@ -1537,7 +1537,7 @@ version = "1.2.1"
 
 [[deps.MuJoCo]]
 deps = ["CEnum", "LinearAlgebra", "MuJoCo_jll", "UnsafeArrays"]
-path = "/home/arun/.julia/dev/MuJoCo"
+path = "submodules/QuadrupedControl.jl/submodules/MuJoCo.jl"
 uuid = "1c101251-5e0f-4746-b44c-0728d433b68a"
 version = "0.2.0"
 weakdeps = ["BangBang", "FFMPEG", "GLFW", "Observables", "PrettyTables", "Printf", "Requires", "StaticArrays"]

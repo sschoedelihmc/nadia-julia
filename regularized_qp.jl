@@ -125,12 +125,12 @@ constraints = Vector{NamedTuple}([
          l = -u_lin[model.nu + model.nc*3 + 1:end][3:3:end], u = fill(Inf, model.nc), update_func = update_force_constraint)])
 
 mpc = LinMPC(model, x_lin, u_lin, [I dt*B dt*C (dt*A - I)], Q, R, Qf, N, constraints, dt=dt, K_pd=K_pd);
-K, P = QuadrupedControl.calc_K(mpc)
+# K, P = QuadrupedControl.calc_K(mpc)
 
 # Simulate on the nonlinear system
 intf.sim_rate = intf.m.opt.timestep*4
 # X_ref, U_ref = quasi_shift_foot_lift(shift_ang = 10, tf = 2, K=K_pd, dt=dt);
-X_ref, U_ref, CMode_ref = shifted_one_foot_lift(; shift_ang = 3, lift_ang = 3, dt = dt, tf = 0.2, K=K_pd);
+X_ref, U_ref, CMode_ref = shifted_one_foot_lift(; shift_ang = 8, lift_ang = 3, dt = dt, tf = 0.2, K=K_pd);
 mpc.ref = LinearizedQuadRef(model, X_ref, U_ref, x_lin, u_lin, dt, nc = model.nc, periodic = false, CMode_ref = CMode_ref)
 
 function cFunc(model, intf, data, ctrl)
